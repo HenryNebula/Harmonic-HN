@@ -47,6 +47,7 @@ import com.simon.harmonichackernews.settings.UserSettings
 import com.simon.harmonichackernews.settings.UserTagsRepository
 import com.simon.harmonichackernews.settings.DataSettingsRuntime
 import com.simon.harmonichackernews.summary.CloudStorySummaryBackend
+import com.simon.harmonichackernews.summary.CommentTranslator
 import com.simon.harmonichackernews.summary.ExtractingStorySummaryBackend
 import com.simon.harmonichackernews.summary.PlatformLocalStorySummaryBackend
 import com.simon.harmonichackernews.summary.StorySummaryRuntime
@@ -269,6 +270,15 @@ class HarmonicAppComposition(
             ),
         )
     }
+
+    fun createCommentTranslator(scope: CoroutineScope): CommentTranslator = CommentTranslator(
+        scope = scope,
+        summaries = network.summaryUseCase,
+        settings = aiSummarySettings,
+        cache = network.translationCacheClient,
+        systemLanguage = host.systemLanguage,
+        mockAnswers = { userSettings.debug.mockAiAnswers },
+    )
 
     fun createReferenceLinkPreviewRuntime(scope: CoroutineScope): ReferenceLinkPreviewRuntime =
         ReferenceLinkPreviewRuntime(
