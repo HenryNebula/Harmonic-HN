@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +45,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simon.harmonichackernews.resources.*
+import com.simon.harmonichackernews.ui.common.HarmonicLoadingIndicator
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 internal fun CommentMeta(
@@ -61,8 +65,8 @@ internal fun CommentMeta(
     fontFamily: androidx.compose.ui.text.font.FontFamily,
     animateChanges: Boolean,
     isNew: Boolean = false,
-    translationLabel: String? = null,
-    onTranslationLabelClick: (() -> Unit)? = null,
+    translationIndicator: CommentTranslationIndicator? = null,
+    onTranslationClick: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val metaColor = when {
@@ -170,7 +174,7 @@ internal fun CommentMeta(
             Box(Modifier.weight(1f))
         }
         AnimatedVisibility(
-            visible = translationLabel != null,
+            visible = translationIndicator != null,
             enter = fadeIn(contentTween()) + expandHorizontally(
                 contentTween(), expandFrom = Alignment.End, clip = true,
             ),
@@ -178,23 +182,48 @@ internal fun CommentMeta(
                 contentTween(), shrinkTowards = Alignment.End, clip = true,
             ),
         ) {
-            val labelClick = onTranslationLabelClick
-            Text(
-                translationLabel.orEmpty(),
+            // A quiet icon instead of a text pill: every translated row would otherwise repeat
+            // "Show original" and crowd the meta line.
+            val translationClick = onTranslationClick
+            val indicator = translationIndicator
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .padding(start = 6.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(colors.tertiaryContainer)
-                    .then(if (labelClick != null) Modifier.clickable { labelClick() } else Modifier)
-                    .padding(horizontal = 7.dp, vertical = 1.5.dp),
-                color = colors.onTertiaryContainer,
-                fontFamily = fontFamily,
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.Medium,
-                style = compactCommentTextStyle,
-                maxLines = 1,
-            )
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .then(
+                        if (translationClick != null) {
+                            Modifier.clickable(onClick = translationClick)
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .semantics {
+                        contentDescription = when (indicator) {
+                            CommentTranslationIndicator.LOADING -> "Translating comment"
+                            CommentTranslationIndicator.FAILED -> "Retry translation"
+                            CommentTranslationIndicator.SHOWING_ORIGINAL -> "Show translation"
+                            CommentTranslationIndicator.SHOWING_TRANSLATION -> "Show original"
+                            null -> ""
+                        }
+                    },
+            ) {
+                if (indicator == CommentTranslationIndicator.LOADING) {
+                    HarmonicLoadingIndicator(Modifier.size(14.dp))
+                } else {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_translate),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = when (indicator) {
+                            CommentTranslationIndicator.FAILED -> colors.error
+                            CommentTranslationIndicator.SHOWING_ORIGINAL -> colors.onSurfaceVariant
+                            else -> colors.primary
+                        },
+                    )
+                }
+            }
         }
         AnimatedVisibility(
             visible = isNew,

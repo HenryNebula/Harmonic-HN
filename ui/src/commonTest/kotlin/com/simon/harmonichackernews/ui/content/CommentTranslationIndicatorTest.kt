@@ -4,10 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-class CommentTranslationLabelTest {
+class CommentTranslationIndicatorTest {
     @Test
-    fun idleCommentsShowNoLabel() {
-        assertNull(commentTranslationLabel(
+    fun idleCommentsShowNoIndicator() {
+        assertNull(commentTranslationIndicator(
             translated = false, loading = false, failed = false, showingOriginal = false,
         ))
     }
@@ -15,8 +15,8 @@ class CommentTranslationLabelTest {
     @Test
     fun loadingTakesPrecedence() {
         assertEquals(
-            "Translating…",
-            commentTranslationLabel(
+            CommentTranslationIndicator.LOADING,
+            commentTranslationIndicator(
                 translated = true, loading = true, failed = true, showingOriginal = true,
             ),
         )
@@ -25,24 +25,24 @@ class CommentTranslationLabelTest {
     @Test
     fun failureOffersRetry() {
         assertEquals(
-            "Translation failed · Retry",
-            commentTranslationLabel(
+            CommentTranslationIndicator.FAILED,
+            commentTranslationIndicator(
                 translated = false, loading = false, failed = true, showingOriginal = false,
             ),
         )
     }
 
     @Test
-    fun translatedCommentsOfferOriginalAndBack() {
+    fun installedTranslationTogglesBetweenStates() {
         assertEquals(
-            "Show original",
-            commentTranslationLabel(
+            CommentTranslationIndicator.SHOWING_TRANSLATION,
+            commentTranslationIndicator(
                 translated = true, loading = false, failed = false, showingOriginal = false,
             ),
         )
         assertEquals(
-            "Show translation",
-            commentTranslationLabel(
+            CommentTranslationIndicator.SHOWING_ORIGINAL,
+            commentTranslationIndicator(
                 translated = true, loading = false, failed = false, showingOriginal = true,
             ),
         )

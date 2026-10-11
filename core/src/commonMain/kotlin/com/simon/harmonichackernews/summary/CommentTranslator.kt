@@ -50,6 +50,8 @@ class CommentTranslator(
         val failed: Set<Int> = emptySet(),
         val showingOriginal: Set<Int> = emptySet(),
         val threadRunning: Boolean = false,
+        val threadTotal: Int = 0,
+        val threadCompleted: Int = 0,
     ) {
         val hasTranslations: Boolean get() = texts.isNotEmpty()
     }
@@ -104,11 +106,14 @@ class CommentTranslator(
         val pending = thread.filter { htmlOf(it).isNotBlank() }
         if (pending.isEmpty()) return
         prepareLanguage()
-        mutableState.update { it.copy(threadRunning = true, failed = emptySet()) }
+        mutableState.update {
+            it.copy(threadRunning = true, failed = emptySet(), threadTotal = 0, threadCompleted = 0)
+        }
         job = scope.launch {
             try {
                 prefetchCache(story, thread)
                 val remaining = pending.filter { it.id !in mutableState.value.texts }
+                mutableState.update { it.copy(threadTotal = remaining.size) }
                 val slots = Semaphore(MAX_CONCURRENT_TRANSLATIONS)
                 coroutineScope {
                     remaining.map { item ->
@@ -131,6 +136,11 @@ class CommentTranslator(
                                 } catch (_: Exception) {
                                     if (requestGeneration == generation) {
                                         mutableState.update { it.copy(failed = it.failed + item.id) }
+                                    }
+                                }
+                                if (requestGeneration == generation) {
+                                    mutableState.update {
+                                        it.copy(threadCompleted = it.threadCompleted + 1)
                                     }
                                 }
                             }
