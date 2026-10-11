@@ -22,8 +22,10 @@ class IosHostRuntimeBindings(
     val cacheDirectory: String,
     val localModels: LocalModelService? = null,
     val systemLanguage: () -> String = {
-        val preferred = platform.Foundation.NSLocale.preferredLanguages.firstOrNull() as? String
-        preferred ?: platform.Foundation.NSLocale.currentLocale().languageCode ?: "en"
+        // AppleLanguages is the user's preferred-language list that backs NSLocale.
+        val preferred = NSUserDefaults.standardUserDefaults
+            .stringArrayForKey("AppleLanguages")?.firstOrNull() as? String
+        preferred ?: "en"
     },
 ) {
     init {
