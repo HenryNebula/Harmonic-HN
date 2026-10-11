@@ -704,6 +704,10 @@ class CommentsFeatureRuntime(
         translation?.toggle(commentId)
     }
 
+    fun updateVisibleComments(commentIds: Set<Int>) {
+        translation?.updateVisibleCommentIds(commentIds)
+    }
+
     private fun translateAllComments() {
         val currentStory = story ?: return
         translation?.translateAll(

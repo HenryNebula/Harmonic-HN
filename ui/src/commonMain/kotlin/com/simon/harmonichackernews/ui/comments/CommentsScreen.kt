@@ -404,6 +404,16 @@ fun CommentsScreen(
         }
     }
 
+    // Feed the viewport's comment ids to the feature so whole-thread translation can prefer
+    // what is on screen over the display-order remainder.
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Int }.toSet()
+        }.distinctUntilChanged().collect { visibleIds ->
+            controller.listener.onVisibleCommentsChanged(visibleIds)
+        }
+    }
+
     val list: @Composable () -> Unit = {
         LazyContentList(
             items = animatedRows.rows,
