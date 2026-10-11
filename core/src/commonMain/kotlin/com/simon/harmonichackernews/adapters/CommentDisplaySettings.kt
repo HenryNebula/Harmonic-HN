@@ -34,6 +34,7 @@ data class CommentDisplaySettings(
     val canProvideSummary: Boolean,
     val showAdditionalSummaryInfo: Boolean,
     val enableSummaryBoldFormatting: Boolean,
+    val canTranslateComments: Boolean = false,
     val indicatorThickness: CommentIndicatorThickness = CommentIndicatorThickness.STANDARD,
     val roundedDepthIndicators: Boolean = false,
     val continuousDepthIndicators: Boolean = false,
@@ -54,6 +55,7 @@ data class CommentDisplaySettings(
             canProvideSummary: Boolean,
             showAdditionalSummaryInfo: Boolean = false,
             enableSummaryBoldFormatting: Boolean = true,
+            canTranslateComments: Boolean = false,
         ): CommentDisplaySettings = CommentDisplaySettings(
             collapseParent = preferences.collapseParent,
             indicatorThickness = preferences.indicatorThickness,
@@ -91,6 +93,7 @@ data class CommentDisplaySettings(
             canProvideSummary = canProvideSummary,
             showAdditionalSummaryInfo = showAdditionalSummaryInfo,
             enableSummaryBoldFormatting = enableSummaryBoldFormatting,
+            canTranslateComments = canTranslateComments,
         )
     }
 }
