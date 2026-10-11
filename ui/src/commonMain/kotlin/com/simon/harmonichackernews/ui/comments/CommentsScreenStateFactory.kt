@@ -90,7 +90,7 @@ object CommentsScreenStateFactory {
         return translation.copy(
             texts = translation.texts.filterKeys { it in validIdSet },
             sourceRevisions = revisions.filterKeys { it in validIdSet },
-            showingOriginal = translation.showingOriginal.filter { it in validIdSet },
+            showingOriginal = translation.showingOriginal.filterTo(mutableSetOf()) { it in validIdSet },
         )
     }
 }

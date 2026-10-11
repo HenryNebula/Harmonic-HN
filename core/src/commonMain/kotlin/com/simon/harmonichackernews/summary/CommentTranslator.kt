@@ -3,6 +3,7 @@ package com.simon.harmonichackernews.summary
 import com.fleeksoft.ksoup.Ksoup
 import com.simon.harmonichackernews.network.CloudSummaryConfig
 import com.simon.harmonichackernews.network.CloudSummaryEvent
+import com.simon.harmonichackernews.network.SummaryUseCase
 import com.simon.harmonichackernews.network.TranslationCacheClient
 import com.simon.harmonichackernews.presentation.PortableCommentItem
 import com.simon.harmonichackernews.presentation.StoryListItemSnapshot
@@ -190,7 +191,9 @@ class CommentTranslator(
      */
     private suspend fun prefetchCache(story: StoryListItemSnapshot, thread: List<PortableCommentItem>) {
         val client = cache ?: return
-        val baseUrl = settings.awaitSnapshot().translationCacheUrl
+        // Synchronous snapshot: the cache URL is plain key-value data and must not trigger a
+        // credential load before we know the server is even configured.
+        val baseUrl = settings.snapshot().translationCacheUrl
         if (baseUrl.isBlank()) return
         val language = mutableState.value.language
         if (language.isBlank()) return

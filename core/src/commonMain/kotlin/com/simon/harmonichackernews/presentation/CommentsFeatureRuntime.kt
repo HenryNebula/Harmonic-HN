@@ -6,6 +6,8 @@ import com.simon.harmonichackernews.data.Comment
 import com.simon.harmonichackernews.data.PreparedCommentThread
 import com.simon.harmonichackernews.data.Story
 import com.simon.harmonichackernews.data.StoryResourceTintStore
+import com.simon.harmonichackernews.data.presentationSnapshot
+import com.simon.harmonichackernews.data.toSnapshot
 import com.simon.harmonichackernews.network.CachedStoryHeader
 import com.simon.harmonichackernews.network.AlgoliaCommentRequest
 import com.simon.harmonichackernews.network.AlgoliaStorySummary
