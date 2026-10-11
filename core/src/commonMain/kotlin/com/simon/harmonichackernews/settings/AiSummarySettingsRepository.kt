@@ -29,6 +29,8 @@ object AiSummaryPreferenceKeys {
     const val GEMINI_NANO_SUMMARY_MODE = "pref_ai_summary_gemini_nano_summary_mode"
     const val ENABLE_BOLD_FORMATTING = "pref_ai_summary_enable_bold_formatting"
     const val SHOW_ADDITIONAL_INFO = "pref_debug_show_llm_summary_info"
+    const val TRANSLATION_LANGUAGE = "pref_ai_translation_language"
+    const val TRANSLATION_CACHE_URL = "pref_ai_translation_cache_url"
 }
 
 enum class GeminiNanoSummaryMode(val storedValue: String) {
@@ -51,6 +53,67 @@ enum class AiSummaryMode(val storedValue: String) {
     }
 }
 
+/**
+ * Target language for comment translation. [storedValue] doubles as the BCP-47 language tag
+ * shared with the optional translation cache server; [SYSTEM] resolves from the host locale.
+ */
+enum class TranslationLanguage(val storedValue: String, val label: String, val promptName: String) {
+    SYSTEM("", "System default", ""),
+    ENGLISH("en", "English", "English"),
+    SPANISH("es", "Spanish", "Spanish"),
+    FRENCH("fr", "French", "French"),
+    GERMAN("de", "German", "German"),
+    ITALIAN("it", "Italian", "Italian"),
+    PORTUGUESE("pt", "Portuguese", "Portuguese"),
+    DUTCH("nl", "Dutch", "Dutch"),
+    RUSSIAN("ru", "Russian", "Russian"),
+    UKRAINIAN("uk", "Ukrainian", "Ukrainian"),
+    POLISH("pl", "Polish", "Polish"),
+    TURKISH("tr", "Turkish", "Turkish"),
+    ARABIC("ar", "Arabic", "Arabic"),
+    HEBREW("he", "Hebrew", "Hebrew"),
+    HINDI("hi", "Hindi", "Hindi"),
+    BENGALI("bn", "Bengali", "Bengali"),
+    CHINESE_SIMPLIFIED("zh-Hans", "Chinese (Simplified)", "Simplified Chinese"),
+    CHINESE_TRADITIONAL("zh-Hant", "Chinese (Traditional)", "Traditional Chinese"),
+    JAPANESE("ja", "Japanese", "Japanese"),
+    KOREAN("ko", "Korean", "Korean"),
+    VIETNAMESE("vi", "Vietnamese", "Vietnamese"),
+    THAI("th", "Thai", "Thai"),
+    INDONESIAN("id", "Indonesian", "Indonesian");
+
+    companion object {
+        fun fromStored(value: String?): TranslationLanguage =
+            entries.firstOrNull { it.storedValue == value } ?: SYSTEM
+
+        /**
+         * Resolves the effective BCP-47 language tag. Explicit selections win; SYSTEM derives a
+         * tag from the host locale, mapping Chinese locales onto their script variant.
+         */
+        fun resolve(stored: TranslationLanguage, systemTag: String): String {
+            if (stored != SYSTEM) return stored.storedValue
+            val tag = systemTag.trim()
+            if (tag.isEmpty()) return ENGLISH.storedValue
+            val segments = tag.split('-')
+            val language = segments.firstOrNull().orEmpty().lowercase()
+            if (language == "zh") {
+                val rest = segments.drop(1)
+                val script = rest.firstOrNull { it.length == 4 }?.lowercase()
+                val traditional = script == "hant" ||
+                    rest.any { it.length in 2..3 && it.uppercase() in TRADITIONAL_CHINESE_REGIONS }
+                return if (traditional) CHINESE_TRADITIONAL.storedValue else CHINESE_SIMPLIFIED.storedValue
+            }
+            return entries.firstOrNull { it.storedValue == language }?.storedValue ?: language
+        }
+
+        /** English name used in the translation prompt for a resolved tag; unknown tags pass through. */
+        fun promptNameFor(tag: String): String =
+            entries.firstOrNull { it.storedValue == tag }?.promptName ?: tag
+
+        private val TRADITIONAL_CHINESE_REGIONS = setOf("TW", "HK", "MO")
+    }
+}
+
 enum class AiSummaryTextSetting { API_KEY, SYSTEM_PROMPT }
 
 data class AiSummarySettingsSnapshot(
@@ -65,6 +128,8 @@ data class AiSummarySettingsSnapshot(
     val geminiNanoSummaryMode: GeminiNanoSummaryMode,
     val enableBoldFormatting: Boolean,
     val showAdditionalInfo: Boolean,
+    val translationLanguage: TranslationLanguage = TranslationLanguage.SYSTEM,
+    val translationCacheUrl: String = "",
     val credentialsLoaded: Boolean = true,
 ) {
     val cloudConfigurationComplete: Boolean
@@ -131,6 +196,13 @@ class AiSummarySettingsRepository(
             AiSummaryPreferenceKeys.SHOW_ADDITIONAL_INFO,
             false,
         ),
+        translationLanguage = TranslationLanguage.fromStored(
+            store.getString(AiSummaryPreferenceKeys.TRANSLATION_LANGUAGE),
+        ),
+        translationCacheUrl = store.getString(
+            AiSummaryPreferenceKeys.TRANSLATION_CACHE_URL,
+            "",
+        ).orEmpty(),
         credentialsLoaded = apiKeyState.value != null,
     )
 
@@ -178,6 +250,14 @@ class AiSummarySettingsRepository(
 
     fun setGeminiNanoSummaryMode(value: GeminiNanoSummaryMode) {
         store.putString(AiSummaryPreferenceKeys.GEMINI_NANO_SUMMARY_MODE, value.storedValue)
+    }
+
+    fun setTranslationLanguage(value: TranslationLanguage) {
+        store.putString(AiSummaryPreferenceKeys.TRANSLATION_LANGUAGE, value.storedValue)
+    }
+
+    fun setTranslationCacheUrl(value: String) {
+        store.putString(AiSummaryPreferenceKeys.TRANSLATION_CACHE_URL, value.trim())
     }
 
     fun setEnableBoldFormatting(value: Boolean) {

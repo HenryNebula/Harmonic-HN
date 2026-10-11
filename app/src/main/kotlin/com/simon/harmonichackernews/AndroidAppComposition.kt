@@ -80,6 +80,7 @@ internal fun createAndroidAppComposition(context: Context): HarmonicAppCompositi
                 }
             },
             systemDark = { AndroidActivityTheme.uiModeNight(context) },
+            systemLanguage = { java.util.Locale.getDefault().toLanguageTag() },
             localModels = localModels,
             storyCacheRepository = persistentStorage.storyCacheRepository,
             articleSnapshotStore = persistentStorage.articleSnapshotStore,

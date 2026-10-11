@@ -184,6 +184,8 @@ class SettingsTransfer(private val store: KeyValueStore, private val scheduleSto
             GlassSwitch.entries.forEach { put(it.storageKey, booleanRule) }
             put(GlassSurfaceProfile.STORAGE_KEY, choice(GlassSurfaceProfile.entries.map { it.name }))
             put(AiSummaryPreferenceKeys.GEMINI_NANO_SUMMARY_MODE, choice(GeminiNanoSummaryMode.entries.map { it.storedValue }))
+            put(AiSummaryPreferenceKeys.TRANSLATION_LANGUAGE, choice(TranslationLanguage.entries.map { it.storedValue }))
+            put(AiSummaryPreferenceKeys.TRANSLATION_CACHE_URL, stringRule(2048) { it.trim() })
             put(AiSummaryPreferenceKeys.SYSTEM_PROMPT, stringRule(16000) { it.takeIf(String::isNotBlank) })
         }
     }

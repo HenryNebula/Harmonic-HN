@@ -19,6 +19,15 @@ object AiSummaryAvailabilityPolicy {
         cloudApiKeyAvailable: Boolean,
     ): Boolean = explicitlyEnabled ?: (localAvailable || cloudApiKeyAvailable)
 
+    /**
+     * Comment translation runs on the cloud chat endpoint only: local summary engines are tuned
+     * for summarization and would double the test surface for unusable quality in v1.
+     */
+    fun canProvideTranslation(
+        explicitlyEnabled: Boolean?,
+        cloudApiKeyAvailable: Boolean,
+    ): Boolean = explicitlyEnabled != false && cloudApiKeyAvailable
+
     fun shouldAutomaticallySummarize(
         automaticSummariesEnabled: Boolean,
         requestAlreadyMade: Boolean,
