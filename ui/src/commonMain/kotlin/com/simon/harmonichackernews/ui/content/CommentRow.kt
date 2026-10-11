@@ -522,13 +522,13 @@ fun CommentRow(
                 emphasized = style.emphasizeMeta,
                 fontFamily = typography.family,
                 animateChanges = style.animateChanges,
-                translationLabel = commentTranslationLabel(
+                translationIndicator = commentTranslationIndicator(
                     translated = translationText != null,
                     loading = translationLoading,
                     failed = translationFailed,
                     showingOriginal = showingOriginal,
                 ),
-                onTranslationLabelClick = onTranslationToggle,
+                onTranslationClick = onTranslationToggle,
             )
             AnimatedVisibility(
                 visible = !textCollapsed,
@@ -587,17 +587,25 @@ fun CommentRow(
     }
 }
 
-/** Label shown in the meta row while a comment translation is loading, failed, or installed. */
-internal fun commentTranslationLabel(
+/** States of the meta-row translation indicator; null hides it entirely. */
+internal enum class CommentTranslationIndicator {
+    LOADING,
+    FAILED,
+    SHOWING_TRANSLATION,
+    SHOWING_ORIGINAL,
+}
+
+/** Meta-row indicator for a comment translation that is loading, failed, or installed. */
+internal fun commentTranslationIndicator(
     translated: Boolean,
     loading: Boolean,
     failed: Boolean,
     showingOriginal: Boolean,
-): String? = when {
-    loading -> "Translating…"
-    failed -> "Translation failed · Retry"
-    showingOriginal -> "Show translation"
-    translated -> "Show original"
+): CommentTranslationIndicator? = when {
+    loading -> CommentTranslationIndicator.LOADING
+    failed -> CommentTranslationIndicator.FAILED
+    showingOriginal -> CommentTranslationIndicator.SHOWING_ORIGINAL
+    translated -> CommentTranslationIndicator.SHOWING_TRANSLATION
     else -> null
 }
 

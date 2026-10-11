@@ -226,6 +226,26 @@ class CommentTranslatorTest {
     }
 
     @Test
+    fun translateAllCountsProgressOverPendingCommentsOnly() = runTest {
+        val repo = repository()
+        val translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repo),
+            settings = settings(),
+        )
+        val thread = listOf(comment(1), comment(2), comment(3))
+        translator.translate(comment(1), story(), thread)
+        advanceUntilIdle()
+        translator.translateAll(story(), thread)
+        advanceUntilIdle()
+
+        val state = translator.state.value
+        assertFalse(state.threadRunning)
+        assertEquals(2, state.threadTotal)
+        assertEquals(2, state.threadCompleted)
+    }
+
+    @Test
     fun secondTranslateAllSupersedesTheFirst() = runTest {
         val repo = repository(answer = {
             // The first batch is slow; the second invocation must not wait for it.

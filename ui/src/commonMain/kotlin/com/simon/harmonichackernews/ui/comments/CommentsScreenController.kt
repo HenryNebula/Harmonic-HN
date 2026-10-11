@@ -127,6 +127,8 @@ class CommentsScreenController private constructor(
     val searchPreparing: Boolean get() = screenState.searchPreparing
     val searchResults: List<PortableCommentItem> get() = screenState.searchResults
     val commentTranslationRunning: Boolean get() = screenState.translation.threadRunning
+    val commentTranslationTotal: Int get() = screenState.translation.threadTotal
+    val commentTranslationCompleted: Int get() = screenState.translation.threadCompleted
     val hasCommentTranslations: Boolean get() = screenState.translation.hasTranslations
     fun translatedTextFor(commentId: Int): String? = screenState.translation.texts[commentId]
     fun isCommentTranslating(commentId: Int): Boolean = commentId in screenState.translation.loading

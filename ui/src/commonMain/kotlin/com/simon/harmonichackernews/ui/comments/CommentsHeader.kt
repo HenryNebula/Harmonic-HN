@@ -352,6 +352,12 @@ fun CommentsHeader(
                                     onAsk = controller::openPostAsk,
                                     askVisible = controller.postAsk?.coveringSource == true,
                                 )
+                                StoryTranslationProgress(
+                                    visible = controller.commentTranslationRunning,
+                                    completed = controller.commentTranslationCompleted,
+                                    total = controller.commentTranslationTotal,
+                                    containerColor = summaryContainerColor,
+                                )
                             }
                             if (story.isComment) {
                                 val actions = buildList {

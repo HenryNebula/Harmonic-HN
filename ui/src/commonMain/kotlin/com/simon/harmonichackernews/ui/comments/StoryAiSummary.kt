@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -218,5 +219,64 @@ fun StoryAiSummary(
             streaming = streaming,
             onDismiss = { showInfoDialog = false },
         )
+    }
+}
+
+/**
+ * Occupies the AI summary slot while a whole-thread translation runs, mirroring the summary
+ * card's shape so the header keeps a single consistent place for generated-content progress.
+ */
+@Composable
+fun StoryTranslationProgress(
+    visible: Boolean,
+    completed: Int,
+    total: Int,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(containerColor)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.ic_translate),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(end = 7.dp)
+                        .size(18.dp),
+                )
+                Text(
+                    "Translation",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            LinearProgressIndicator(
+                progress = { if (total > 0) completed.toFloat() / total else 0f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+            )
+            Text(
+                if (total > 0) "Translating comments · $completed of $total" else "Translating comments…",
+                modifier = Modifier.padding(top = 8.dp),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
