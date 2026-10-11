@@ -25,6 +25,7 @@ import com.simon.harmonichackernews.settings.ReadingPreferences
 import com.simon.harmonichackernews.settings.StoryPreviewTintState
 import com.simon.harmonichackernews.settings.UserSettings
 import com.simon.harmonichackernews.summary.AiSummaryAvailabilityPolicy
+import com.simon.harmonichackernews.summary.CommentTranslator
 import com.simon.harmonichackernews.summary.LOCAL_SUMMARY_ARTICLE_TOO_SHORT
 import com.simon.harmonichackernews.summary.StorySummaryDiagnostics
 import com.simon.harmonichackernews.summary.StorySummaryInput
@@ -97,6 +98,7 @@ class CommentsFeatureRuntime(
     private val summarySettings: AiSummarySettingsRepository? = null,
     private val localSummaryAvailable: () -> Boolean = { false },
     private val summaryRuntime: StorySummaryRuntime? = null,
+    private val translation: CommentTranslator? = null,
     private val canLoadArticleTextOnDemand: Boolean = false,
     private val loadCachedStoryHeader: suspend (Int) -> CachedStoryHeader? = { null },
     private val hasViewedComments: (Int) -> Boolean = { false },
@@ -156,6 +158,11 @@ class CommentsFeatureRuntime(
     val summaryDiagnostics: StorySummaryDiagnostics?
         get() = summaryRuntime?.state?.value?.diagnostics
 
+    private val mutableTranslationState = MutableStateFlow(CommentTranslator.State())
+    val translationStateFlow: StateFlow<CommentTranslator.State> =
+        mutableTranslationState.asStateFlow()
+    val translationState: CommentTranslator.State get() = translationStateFlow.value
+
     init {
         scope.launch {
             presenter.effects.collect(::applyPresenterEffect)
@@ -175,6 +182,14 @@ class CommentsFeatureRuntime(
         previewResourceRuntime?.let { runtime ->
             scope.launch { runtime.states.drop(1).collect { changed() } }
         }
+        translation?.let { translator ->
+            scope.launch { translator.state.collect { mutableTranslationState.value = it } }
+            scope.launch {
+                translator.messages.collect { message ->
+                    platform(CommentsPlatformEffect.ShowMessage(message))
+                }
+            }
+        }
     }
 
     fun initialize(
@@ -191,6 +206,7 @@ class CommentsFeatureRuntime(
             automaticSummaryRequested = false
             summaryPageTextRetryAttempted = false
             summaryPageTextRetryPending = false
+            translation?.clear()
             sessionState.story = initialStory
             sessionState.showWebsite = showWebsite
             sessionState.scrollToCommentId = scrollToCommentId
@@ -270,6 +286,13 @@ class CommentsFeatureRuntime(
                 cloudApiKeyAvailable = snapshot.apiKey.isNotBlank(),
             )
         } ?: false)
+        val canTranslateComments = translation != null && (settings.debug.mockAiAnswers ||
+            (aiSnapshot?.let { snapshot ->
+                AiSummaryAvailabilityPolicy.canProvideTranslation(
+                    explicitlyEnabled = snapshot.explicitlyEnabled,
+                    cloudApiKeyAvailable = snapshot.apiKey.isNotBlank(),
+                )
+            } ?: false))
         val previous = mutableSettingsState.value
         val display = CommentDisplaySettings.from(
             preferences = settings.comments,
@@ -277,6 +300,7 @@ class CommentsFeatureRuntime(
             isTablet = capabilities.isTablet,
             hasAccountDetails = hasAccount,
             canProvideSummary = story?.isLink == true && canProvideSummary,
+            canTranslateComments = canTranslateComments,
             showAdditionalSummaryInfo = aiSnapshot?.showAdditionalInfo ?: false,
             enableSummaryBoldFormatting = aiSnapshot?.enableBoldFormatting ?: true,
         )
@@ -584,6 +608,10 @@ class CommentsFeatureRuntime(
             platform(CommentsPlatformEffect.ReloadLinkPreviews)
             return
         }
+        if (action == CommentsHeaderAction.TRANSLATE) {
+            translateAllComments()
+            return
+        }
         execute(CommentsUiOrchestrator.header(action, CommentsHeaderContext(story, hasAccount)))
     }
 
@@ -650,6 +678,10 @@ class CommentsFeatureRuntime(
         voteLoading: Boolean,
         downvoted: Boolean,
     ) {
+        if (action == CommentMenuAction.TRANSLATE) {
+            translateComment(comment)
+            return
+        }
         execute(
             CommentsUiOrchestrator.comment(
                 action = action,
@@ -666,6 +698,27 @@ class CommentsFeatureRuntime(
         )
     }
 
+    fun toggleTranslationView(commentId: Int) {
+        translation?.toggle(commentId)
+    }
+
+    private fun translateAllComments() {
+        val currentStory = story ?: return
+        translation?.translateAll(
+            story = StoryListItemSnapshot(currentStory.toSnapshot(), currentStory.presentationSnapshot()),
+            thread = thread.state.value.allComments,
+        )
+    }
+
+    private fun translateComment(comment: PortableCommentItem) {
+        val currentStory = story ?: return
+        translation?.translate(
+            comment = comment,
+            story = StoryListItemSnapshot(currentStory.toSnapshot(), currentStory.presentationSnapshot()),
+            thread = thread.state.value.allComments,
+        )
+    }
+
     fun dispose() {
         cancelPendingHeader()
         openingRequest?.close()
@@ -675,6 +728,7 @@ class CommentsFeatureRuntime(
         presenter.dispatch(CommentsAction.CancelPollVote)
         previewResourceRuntime?.dispose()
         summaryRuntime?.dispose()
+        translation?.clear()
     }
 
     private fun execute(decision: FeatureDecision<CommentsAction, CommentsPlatformEffect>) {

@@ -216,6 +216,7 @@ fun HarmonicAppComposition.createCommentsFeatureStore(
         summarySettings = aiSummarySettings,
         localSummaryAvailable = { localSummaryEngine?.isReady() == true },
         summaryRuntime = createStorySummaryRuntime(featureScope),
+        translation = createCommentTranslator(featureScope),
         canLoadArticleTextOnDemand = host.canLoadArticleTextOnDemand,
         loadCachedStoryHeader = { storyCache.loadStoryHeader(it) },
         isThreadCached = storyCache::hasStoryPayload,

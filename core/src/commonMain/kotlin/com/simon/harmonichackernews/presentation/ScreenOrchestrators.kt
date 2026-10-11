@@ -95,6 +95,7 @@ object CommentsUiOrchestrator {
                 refreshState = true,
             )
             CommentsHeaderAction.SUMMARIZE -> effect(CommentsPlatformEffect.Summarize)
+            CommentsHeaderAction.TRANSLATE -> FeatureDecision()
             CommentsHeaderAction.REFRESH -> FeatureDecision()
         }
     }
@@ -208,6 +209,7 @@ object CommentsUiOrchestrator {
             CommentMenuAction.FAVORITE -> accountAction(context.hasAccount) {
                 CommentsAction.ToggleCommentFavorite(comment.id)
             }
+            CommentMenuAction.TRANSLATE -> FeatureDecision()
             CommentMenuAction.UPVOTE,
             CommentMenuAction.UNVOTE,
             CommentMenuAction.DOWNVOTE -> when {

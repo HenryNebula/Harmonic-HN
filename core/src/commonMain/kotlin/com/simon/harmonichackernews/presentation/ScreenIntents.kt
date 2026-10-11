@@ -51,6 +51,7 @@ enum class CommentsHeaderAction {
     FAVORITE,
     BOOKMARK,
     SUMMARIZE,
+    TRANSLATE,
     REFRESH,
 }
 
@@ -95,6 +96,7 @@ enum class CommentMenuAction {
     UNVOTE,
     DOWNVOTE,
     REPLY,
+    TRANSLATE,
 }
 
 enum class VoteDirection(val wireValue: String) {

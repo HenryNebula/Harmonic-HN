@@ -5,6 +5,7 @@ import com.simon.harmonichackernews.data.Story
 import com.simon.harmonichackernews.data.presentationSnapshot
 import com.simon.harmonichackernews.data.toSnapshot
 import com.simon.harmonichackernews.network.StoryPreviewResourceState
+import com.simon.harmonichackernews.summary.CommentTranslator
 import com.simon.harmonichackernews.summary.StorySummaryDiagnostics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -28,6 +29,7 @@ data class CommentsState(
     val summaryLoading: Boolean = false,
     val summaryDiagnostics: StorySummaryDiagnostics? = null,
     val headerPreviewResource: StoryPreviewResourceState? = null,
+    val translation: CommentTranslator.State = CommentTranslator.State(),
 ) {
     val thread: PortableCommentThreadState get() = presenter.thread
 }
@@ -50,6 +52,7 @@ sealed interface CommentsIntent {
     data class Sort(val sorting: String) : CommentsIntent
     data class SheetAction(val action: CommentsSheetAction) : CommentsIntent
     data class PollOption(val optionId: Int) : CommentsIntent
+    data class ToggleCommentTranslation(val commentId: Int) : CommentsIntent
 }
 
 /** Canonical owner for Comments state, intents, effects, and retained workflow state. */
@@ -165,6 +168,7 @@ class CommentsFeatureStore internal constructor(
             is CommentsIntent.Sort -> runtime.setSorting(intent.sorting)
             is CommentsIntent.SheetAction -> runtime.handleSheetAction(intent.action)
             is CommentsIntent.PollOption -> runtime.votePollOption(intent.optionId)
+            is CommentsIntent.ToggleCommentTranslation -> runtime.toggleTranslationView(intent.commentId)
         }
         publish()
     }
@@ -191,6 +195,7 @@ class CommentsFeatureStore internal constructor(
         jobs += scope.launch { runtime.presenter.state.collect { publish() } }
         jobs += scope.launch { runtime.thread.state.collect { publish() } }
         jobs += scope.launch { runtime.settingsState.collect { publish() } }
+        jobs += scope.launch { runtime.translationStateFlow.collect { publish() } }
     }
 
     private fun publish() {
@@ -207,5 +212,6 @@ class CommentsFeatureStore internal constructor(
         summaryLoading = runtime.summaryLoading,
         summaryDiagnostics = runtime.summaryDiagnostics,
         headerPreviewResource = runtime.headerPreviewResource,
+        translation = runtime.translationState,
     )
 }
