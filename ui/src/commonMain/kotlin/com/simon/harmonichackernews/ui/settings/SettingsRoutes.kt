@@ -24,6 +24,7 @@ import com.simon.harmonichackernews.settings.AppSettingsRepository
 import com.simon.harmonichackernews.settings.AiModelDefaultsUseCase
 import com.simon.harmonichackernews.settings.AiSummaryMode
 import com.simon.harmonichackernews.settings.AiSummarySettingsRepository
+import com.simon.harmonichackernews.settings.TranslationLanguage
 import com.simon.harmonichackernews.settings.CommentSortingPreference
 import com.simon.harmonichackernews.settings.CommentVolumeNavigationMode
 import com.simon.harmonichackernews.settings.ContentFilterRepository
@@ -109,6 +110,7 @@ fun AiSummarySettingsRoute(
 ) {
     val persistedSettings by repository.updates.collectAsStateWithLifecycle(initialValue = repository.snapshot())
     var dialog by rememberSaveable { mutableStateOf<AiSummarySettingsDialog?>(null) }
+    var languageDialog by rememberSaveable { mutableStateOf(false) }
 
     // The page outlives its provider dialog. Changing providers cancels the old lookup,
     // while dismissing the dialog leaves the new provider's model lookup running.
@@ -186,6 +188,9 @@ fun AiSummarySettingsRoute(
                 selectedLocalModelId ==
                 LocalModelCatalog.MODEL_GEMINI_NANO,
             geminiNanoSummaryMode = persistedSettings.geminiNanoSummaryMode,
+            translationLanguage = persistedSettings.translationLanguage,
+            translationLanguageLabel = persistedSettings.translationLanguage.label,
+            translationCacheUrl = persistedSettings.translationCacheUrl,
             disabledReason = if (
                 persistedSettings.mode == AiSummaryMode.CLOUD &&
                 persistedSettings.credentialsLoaded && persistedSettings.apiKey.isBlank()
@@ -213,8 +218,44 @@ fun AiSummarySettingsRoute(
         onShowAdditionalInfoChanged = repository::setShowAdditionalInfo,
         onDialogRequested = { dialog = it },
         localModelsContent = localModelsContent,
+        onTranslationLanguageRequested = { languageDialog = true },
     )
-    dialog?.let { dialogContent(it) { dialog = null } }
+    if (languageDialog) {
+        SingleChoiceDialog(
+            title = "Comment translation language",
+            options = TranslationLanguage.entries.map { it.storedValue to it.label },
+            selected = persistedSettings.translationLanguage.storedValue,
+            onDismiss = { languageDialog = false },
+            onSelected = { value ->
+                repository.setTranslationLanguage(TranslationLanguage.fromStored(value))
+                languageDialog = false
+            },
+        )
+    }
+    val activeDialog = dialog
+    if (activeDialog == AiSummarySettingsDialog.TranslationCacheUrl) {
+        // Rendered here rather than through host dialogContent switches so no host changes.
+        AiSummaryTextDialog(
+            title = "Translation cache server",
+            hint = "Base URL, e.g. http://192.168.1.10:8362",
+            initialValue = persistedSettings.translationCacheUrl,
+            defaultValue = "",
+            minLines = 1,
+            maxLines = 1,
+            textSizeSp = 16,
+            trimValue = true,
+            allowEmpty = true,
+            showReset = false,
+            asciiInput = false,
+            onSave = { value ->
+                repository.setTranslationCacheUrl(value)
+                null
+            },
+            onDismiss = { dialog = null },
+        )
+    } else {
+        activeDialog?.let { dialogContent(it) { dialog = null } }
+    }
 }
 
 @Composable

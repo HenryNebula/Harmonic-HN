@@ -72,6 +72,8 @@ class CommentsFeatureListener(
     override fun onHeaderColorChanged(color: Int) = platform.onHeaderColorChanged(color)
     override fun onHeaderCoverageChanged(coverage: Float) = platform.onHeaderCoverageChanged(coverage)
     override fun onPollOption(optionId: Int) = store.accept(CommentsIntent.PollOption(optionId))
+    override fun onToggleCommentTranslation(commentId: Int) =
+        store.accept(CommentsIntent.ToggleCommentTranslation(commentId))
 
     interface PlatformCallbacks {
         fun isRestoringScroll(): Boolean

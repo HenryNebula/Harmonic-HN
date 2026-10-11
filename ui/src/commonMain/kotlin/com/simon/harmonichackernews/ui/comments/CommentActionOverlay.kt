@@ -535,8 +535,11 @@ private fun CommentActionCardContent(
         }
     }
     val linkColor = MaterialTheme.colorScheme.primary
-    val body = remember(comment.expandedAnchorText, linkColor, linkListener) {
-        htmlAnnotatedString(comment.expandedAnchorText.orEmpty(), linkColor, linkListener)
+    val effectiveHtml = controller.translatedTextFor(comment.id)
+        ?.takeIf { !controller.showingOriginalTranslation(comment.id) }
+        ?: comment.expandedAnchorText.orEmpty()
+    val body = remember(effectiveHtml, linkColor, linkListener) {
+        htmlAnnotatedString(effectiveHtml, linkColor, linkListener)
     }
     val bodyScrollState = rememberScrollState()
 
@@ -722,6 +725,28 @@ private fun CommentActionCardContent(
                             comment,
                             CommentMenuAction.COPY,
                         )
+                    }
+                    if (settings.canTranslateComments) {
+                        val translated = controller.translatedTextFor(comment.id) != null
+                        val showingOriginal = controller.showingOriginalTranslation(comment.id)
+                        CommentActionIcon(
+                            icon = Res.drawable.ic_translate,
+                            description = when {
+                                !translated -> "Translate"
+                                showingOriginal -> "Show translation"
+                                else -> "Show original"
+                            },
+                            loading = controller.isCommentTranslating(comment.id),
+                        ) {
+                            if (translated) {
+                                controller.listener.onToggleCommentTranslation(comment.id)
+                            } else {
+                                controller.listener.onCommentAction(
+                                    comment,
+                                    CommentMenuAction.TRANSLATE,
+                                )
+                            }
+                        }
                     }
                     CommentActionIcon(Res.drawable.ic_share, "Share link") {
                         controller.listener.onCommentAction(

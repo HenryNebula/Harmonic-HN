@@ -14,8 +14,9 @@ import org.jetbrains.compose.resources.stringResource
 import com.simon.harmonichackernews.resources.*
 import com.simon.harmonichackernews.settings.AiSummaryMode
 import com.simon.harmonichackernews.settings.GeminiNanoSummaryMode
+import com.simon.harmonichackernews.settings.TranslationLanguage
 
-enum class AiSummarySettingsDialog { BaseUrl, ApiKey, Model, SystemPrompt }
+enum class AiSummarySettingsDialog { BaseUrl, ApiKey, Model, SystemPrompt, TranslationCacheUrl }
 
 data class AiSummarySettingsUiState(
     val enabled: Boolean,
@@ -32,6 +33,9 @@ data class AiSummarySettingsUiState(
     val showAdditionalInfo: Boolean,
     val geminiNanoSelected: Boolean,
     val geminiNanoSummaryMode: GeminiNanoSummaryMode,
+    val translationLanguage: TranslationLanguage = TranslationLanguage.SYSTEM,
+    val translationLanguageLabel: String = "",
+    val translationCacheUrl: String = "",
     val disabledReason: String? = null,
 )
 
@@ -50,6 +54,7 @@ fun AiSummarySettingsScreen(
     onShowAdditionalInfoChanged: (Boolean) -> Unit,
     onDialogRequested: (AiSummarySettingsDialog) -> Unit,
     localModelsContent: @Composable () -> Unit,
+    onTranslationLanguageRequested: () -> Unit = {},
 ) {
     SettingsPage(
         title = stringResource(Res.string.settings_section_ai_summary),
@@ -179,6 +184,35 @@ fun AiSummarySettingsScreen(
                     icon = Res.drawable.ic_info,
                     checked = state.showAdditionalInfo,
                     onCheckedChange = onShowAdditionalInfoChanged,
+                )
+            }
+        }
+        item {
+            SettingsCategory("Comment translation") {
+                SettingRow(
+                    title = "Translation language",
+                    summary = state.translationLanguageLabel.ifBlank {
+                        state.translationLanguage.label
+                    },
+                    icon = Res.drawable.ic_translate,
+                    onClick = onTranslationLanguageRequested,
+                )
+                SettingsDivider()
+                SettingRow(
+                    title = "Translation cache server",
+                    summary = state.translationCacheUrl.ifBlank { "Disabled" },
+                    icon = Res.drawable.ic_cloud,
+                    onClick = { onDialogRequested(AiSummarySettingsDialog.TranslationCacheUrl) },
+                )
+                Text(
+                    text = "Translate comments with the selected AI model. " +
+                        "Optionally point at a self-hosted cache server " +
+                        "(http://192.168.x.x:8362) for pre-translated threads.",
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = ProductSansFontFamily,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
                 )
             }
         }
