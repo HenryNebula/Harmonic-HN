@@ -31,6 +31,33 @@ class AiSummarySettingsRepositoryTest {
         assertFalse(settings.showAdditionalInfo)
         assertFalse(settings.cloudConfigurationComplete)
         assertFalse(settings.enabled(localConfigurationReady = false))
+        assertEquals(TranslationLanguage.SYSTEM, settings.translationLanguage)
+        assertEquals("", settings.translationCacheUrl)
+    }
+
+    @Test
+    fun translationPreferencesRoundTrip() {
+        val repository = AiSummarySettingsRepository(
+            TestKeyValueStore(),
+            TestCredentialStore(),
+            emptyFlow(),
+        )
+
+        repository.setTranslationLanguage(TranslationLanguage.CHINESE_TRADITIONAL)
+        repository.setTranslationCacheUrl("  http://192.168.1.10:8362/  ")
+
+        val settings = repository.snapshot()
+        assertEquals(TranslationLanguage.CHINESE_TRADITIONAL, settings.translationLanguage)
+        assertEquals("http://192.168.1.10:8362/", settings.translationCacheUrl)
+
+        repository.setTranslationLanguage(TranslationLanguage.SYSTEM)
+        assertEquals(TranslationLanguage.SYSTEM, repository.snapshot().translationLanguage)
+
+        // Unknown stored values fall back to the system default.
+        val store = TestKeyValueStore()
+        val manual = AiSummarySettingsRepository(store, TestCredentialStore(), emptyFlow())
+        store.putString(AiSummaryPreferenceKeys.TRANSLATION_LANGUAGE, "klingon")
+        assertEquals(TranslationLanguage.SYSTEM, manual.snapshot().translationLanguage)
     }
 
     @Test
