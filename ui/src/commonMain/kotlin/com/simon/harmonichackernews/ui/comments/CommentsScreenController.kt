@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.layer.GraphicsLayer
 import com.simon.harmonichackernews.adapters.CommentDisplaySettings
 import com.simon.harmonichackernews.presentation.*
 import com.simon.harmonichackernews.network.StoryPreviewResourceState
+import com.simon.harmonichackernews.summary.CommentTranslator
 import com.simon.harmonichackernews.summary.StorySummaryDiagnostics
 import com.simon.harmonichackernews.utils.CollectedReferenceLinks
 
@@ -57,6 +58,7 @@ data class CommentsScreenState(
     val searchQuery: String = "",
     val searchPreparing: Boolean = false,
     val searchResults: List<PortableCommentItem> = emptyList(),
+    val translation: CommentTranslator.State = CommentTranslator.State(),
 )
 
 class CommentsScreenController private constructor(
@@ -124,6 +126,13 @@ class CommentsScreenController private constructor(
     val searchQuery: String get() = screenState.searchQuery
     val searchPreparing: Boolean get() = screenState.searchPreparing
     val searchResults: List<PortableCommentItem> get() = screenState.searchResults
+    val commentTranslationRunning: Boolean get() = screenState.translation.threadRunning
+    val hasCommentTranslations: Boolean get() = screenState.translation.hasTranslations
+    fun translatedTextFor(commentId: Int): String? = screenState.translation.texts[commentId]
+    fun isCommentTranslating(commentId: Int): Boolean = commentId in screenState.translation.loading
+    fun commentTranslationFailed(commentId: Int): Boolean = commentId in screenState.translation.failed
+    fun showingOriginalTranslation(commentId: Int): Boolean =
+        commentId in screenState.translation.showingOriginal
     val contentInsetLeftPx: Int get() = screenState.contentInsetLeftPx
     val contentInsetRightPx: Int get() = screenState.contentInsetRightPx
     var statusBarHeaderColor by mutableStateOf<Color?>(null)
@@ -939,6 +948,7 @@ class CommentsScreenController private constructor(
         fun onHeaderColorChanged(color: Int)
         fun onHeaderCoverageChanged(coverage: Float)
         fun onPollOption(optionId: Int)
+        fun onToggleCommentTranslation(commentId: Int) {}
     }
 
     companion object {

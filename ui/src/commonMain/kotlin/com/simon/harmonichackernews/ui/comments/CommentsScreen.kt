@@ -5,6 +5,7 @@ import com.simon.harmonichackernews.ui.theme.cardBackground
 import com.simon.harmonichackernews.ui.theme.pageBackground
 import com.simon.harmonichackernews.resources.*
 import com.simon.harmonichackernews.presentation.CommentsHeaderAction
+import com.simon.harmonichackernews.presentation.CommentMenuAction
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Animatable
@@ -567,6 +568,21 @@ fun CommentsScreen(
                         )
                     },
                     onLinkClick = onOpenLink,
+                    translationText = controller.translatedTextFor(item.comment.id),
+                    translationLoading = controller.isCommentTranslating(item.comment.id),
+                    translationFailed = controller.commentTranslationFailed(item.comment.id),
+                    showingOriginal = controller.showingOriginalTranslation(item.comment.id),
+                    onTranslationToggle = {
+                        when {
+                            controller.isCommentTranslating(item.comment.id) -> Unit
+                            controller.commentTranslationFailed(item.comment.id) ->
+                                controller.listener.onCommentAction(
+                                    item.comment,
+                                    CommentMenuAction.TRANSLATE,
+                                )
+                            else -> controller.listener.onToggleCommentTranslation(item.comment.id)
+                        }
+                    },
                 )
         }
     }

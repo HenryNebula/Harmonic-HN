@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,6 +61,8 @@ internal fun CommentMeta(
     fontFamily: androidx.compose.ui.text.font.FontFamily,
     animateChanges: Boolean,
     isNew: Boolean = false,
+    translationLabel: String? = null,
+    onTranslationLabelClick: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val metaColor = when {
@@ -165,6 +168,33 @@ internal fun CommentMeta(
             )
         } else {
             Box(Modifier.weight(1f))
+        }
+        AnimatedVisibility(
+            visible = translationLabel != null,
+            enter = fadeIn(contentTween()) + expandHorizontally(
+                contentTween(), expandFrom = Alignment.End, clip = true,
+            ),
+            exit = fadeOut(contentTween()) + shrinkHorizontally(
+                contentTween(), shrinkTowards = Alignment.End, clip = true,
+            ),
+        ) {
+            val labelClick = onTranslationLabelClick
+            Text(
+                translationLabel.orEmpty(),
+                modifier = Modifier
+                    .padding(start = 6.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(colors.tertiaryContainer)
+                    .then(if (labelClick != null) Modifier.clickable { labelClick() } else Modifier)
+                    .padding(horizontal = 7.dp, vertical = 1.5.dp),
+                color = colors.onTertiaryContainer,
+                fontFamily = fontFamily,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                fontWeight = FontWeight.Medium,
+                style = compactCommentTextStyle,
+                maxLines = 1,
+            )
         }
         AnimatedVisibility(
             visible = isNew,

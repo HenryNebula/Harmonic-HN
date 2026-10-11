@@ -336,6 +336,11 @@ fun CommentRow(
     onLinkLongClick: (String, String, Rect) -> Unit,
     onReferenceLongClick: (CollectedReferenceLinks.ReferenceLink, Rect, GraphicsLayer?) -> Unit,
     onLinkClick: (String) -> Unit = {},
+    translationText: String? = null,
+    translationLoading: Boolean = false,
+    translationFailed: Boolean = false,
+    showingOriginal: Boolean = false,
+    onTranslationToggle: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val typography = rememberContentTypography(
@@ -358,14 +363,15 @@ fun CommentRow(
         label = "runtime comment indicator color",
     )
     val textCollapsed = !forceExpanded && !comment.expanded && collapseParent
+    val effectiveHtml = translationText?.takeIf { !showingOriginal } ?: comment.expandedAnchorText
     val renderModel = remember(
         comment.id,
-        comment.expandedAnchorText,
+        effectiveHtml,
         style.collectLinks,
     ) {
         CommentRenderModelCache.get(
             commentId = comment.id,
-            expandedHtml = comment.expandedAnchorText,
+            expandedHtml = effectiveHtml,
             collectLinks = style.collectLinks,
         )
     }
@@ -516,6 +522,13 @@ fun CommentRow(
                 emphasized = style.emphasizeMeta,
                 fontFamily = typography.family,
                 animateChanges = style.animateChanges,
+                translationLabel = commentTranslationLabel(
+                    translated = translationText != null,
+                    loading = translationLoading,
+                    failed = translationFailed,
+                    showingOriginal = showingOriginal,
+                ),
+                onTranslationLabelClick = onTranslationToggle,
             )
             AnimatedVisibility(
                 visible = !textCollapsed,
@@ -572,6 +585,20 @@ fun CommentRow(
             }
         }
     }
+}
+
+/** Label shown in the meta row while a comment translation is loading, failed, or installed. */
+internal fun commentTranslationLabel(
+    translated: Boolean,
+    loading: Boolean,
+    failed: Boolean,
+    showingOriginal: Boolean,
+): String? = when {
+    loading -> "Translating…"
+    failed -> "Translation failed · Retry"
+    showingOriginal -> "Show translation"
+    translated -> "Show original"
+    else -> null
 }
 
 /** Applies depth indentation from incoming constraints without a BoxWithConstraints subcompose. */

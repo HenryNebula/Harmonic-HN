@@ -1,7 +1,9 @@
 package com.simon.harmonichackernews.ui.comments
 
 import com.simon.harmonichackernews.presentation.CommentsState
+import com.simon.harmonichackernews.presentation.PortableCommentItem
 import com.simon.harmonichackernews.presentation.StoryLoadFailure
+import com.simon.harmonichackernews.summary.CommentTranslator
 
 data class CommentsPlatformPresentation(
     val adBlockActive: Boolean,
@@ -64,6 +66,31 @@ object CommentsScreenStateFactory {
             searchPreparing = thread.searchPreparing,
             searchResults = thread.searchResults,
             visibleComments = thread.visibleComments,
+            translation = filteredTranslation(feature.translation, thread.allComments),
+        )
+    }
+
+    /**
+     * Drops translations whose source comment changed after they were produced, so edited or
+     * reloaded comments fall back to their original text instead of a stale translation.
+     */
+    private fun filteredTranslation(
+        translation: CommentTranslator.State,
+        comments: List<PortableCommentItem>,
+    ): CommentTranslator.State {
+        if (translation.texts.isEmpty()) return translation
+        val revisions = translation.sourceRevisions
+        if (revisions.isEmpty()) return translation
+        val current = comments.associate { item ->
+            item.id to (item.expandedAnchorText ?: item.text.orEmpty()).hashCode()
+        }
+        val validIds = translation.texts.keys.filter { id -> revisions[id] == current[id] }
+        if (validIds.size == translation.texts.size) return translation
+        val validIdSet = validIds.toSet()
+        return translation.copy(
+            texts = translation.texts.filterKeys { it in validIdSet },
+            sourceRevisions = revisions.filterKeys { it in validIdSet },
+            showingOriginal = translation.showingOriginal.filter { it in validIdSet },
         )
     }
 }
