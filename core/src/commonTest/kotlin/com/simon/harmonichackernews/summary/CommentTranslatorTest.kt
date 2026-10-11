@@ -226,6 +226,28 @@ class CommentTranslatorTest {
     }
 
     @Test
+    fun visibleCommentsAreTranslatedFirst() = runTest {
+        val repo = repository()
+        val translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repo),
+            settings = settings(),
+        )
+        val thread = listOf(comment(1), comment(2), comment(3), comment(4))
+        translator.updateVisibleCommentIds(setOf(3))
+        translator.translateAll(story(), thread)
+        advanceUntilIdle()
+
+        assertEquals(4, repo.requests.size)
+        val firstHtml = Json.parseToJsonElement(repo.requests.first())
+            .jsonObject["comment_html"]!!.jsonPrimitive.content
+        assertEquals("<p>Comment 3</p>", firstHtml)
+        val secondHtml = Json.parseToJsonElement(repo.requests[1])
+            .jsonObject["comment_html"]!!.jsonPrimitive.content
+        assertEquals("<p>Comment 1</p>", secondHtml)
+    }
+
+    @Test
     fun translateAllCountsProgressOverPendingCommentsOnly() = runTest {
         val repo = repository()
         val translator = CommentTranslator(

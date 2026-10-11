@@ -53,6 +53,7 @@ sealed interface CommentsIntent {
     data class SheetAction(val action: CommentsSheetAction) : CommentsIntent
     data class PollOption(val optionId: Int) : CommentsIntent
     data class ToggleCommentTranslation(val commentId: Int) : CommentsIntent
+    data class UpdateVisibleComments(val commentIds: Set<Int>) : CommentsIntent
 }
 
 /** Canonical owner for Comments state, intents, effects, and retained workflow state. */
@@ -169,6 +170,12 @@ class CommentsFeatureStore internal constructor(
             is CommentsIntent.SheetAction -> runtime.handleSheetAction(intent.action)
             is CommentsIntent.PollOption -> runtime.votePollOption(intent.optionId)
             is CommentsIntent.ToggleCommentTranslation -> runtime.toggleTranslationView(intent.commentId)
+            is CommentsIntent.UpdateVisibleComments -> {
+                runtime.updateVisibleComments(intent.commentIds)
+                // Viewport ids are translation scheduling input, not render state; skip the
+                // snapshot rebuild the way scroll-position recording does.
+                return
+            }
         }
         publish()
     }

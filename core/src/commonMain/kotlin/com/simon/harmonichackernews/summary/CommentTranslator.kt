@@ -12,8 +12,6 @@ import com.simon.harmonichackernews.settings.TranslationLanguage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,8 +20,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -65,6 +61,14 @@ class CommentTranslator(
     private var job: Job? = null
     private var generation = 0
     private val cacheLookups = mutableSetOf<Pair<Int, String>>()
+
+    /** Comment ids currently on screen, pushed by the comments UI as the viewport changes. */
+    @Volatile
+    private var visibleCommentIds: Set<Int> = emptySet()
+
+    fun updateVisibleCommentIds(commentIds: Set<Int>) {
+        visibleCommentIds = commentIds
+    }
 
     fun translate(comment: PortableCommentItem, story: StoryListItemSnapshot, thread: List<PortableCommentItem>) {
         val html = htmlOf(comment)
@@ -112,14 +116,16 @@ class CommentTranslator(
         job = scope.launch {
             try {
                 prefetchCache(story, thread)
-                val remaining = pending.filter { it.id !in mutableState.value.texts }
+                val remaining = pending.filter { it.id !in mutableState.value.texts }.toMutableList()
                 mutableState.update { it.copy(threadTotal = remaining.size) }
-                val slots = Semaphore(MAX_CONCURRENT_TRANSLATIONS)
                 coroutineScope {
-                    remaining.map { item ->
-                        async {
-                            slots.withPermit {
-                                if (requestGeneration != generation) return@withPermit
+                    // Workers pull from the queue instead of holding fixed slots, so each pick
+                    // can prefer whatever the viewport shows at that moment.
+                    repeat(minOf(MAX_CONCURRENT_TRANSLATIONS, remaining.size)) {
+                        launch {
+                            while (true) {
+                                val item = pickNextPending(remaining) ?: break
+                                if (requestGeneration != generation) return@launch
                                 try {
                                     val translated = translateNow(item, story, thread)
                                     if (requestGeneration == generation) {
@@ -142,10 +148,12 @@ class CommentTranslator(
                                     mutableState.update {
                                         it.copy(threadCompleted = it.threadCompleted + 1)
                                     }
+                                } else {
+                                    return@launch
                                 }
                             }
                         }
-                    }.awaitAll()
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -281,6 +289,23 @@ class CommentTranslator(
         }
         return parents.reversed()
     }
+
+    /**
+     * Pulls the next comment to translate, preferring whatever is on screen right now so
+     * scrolled-in content finishes before off-screen remainder; the fallback keeps display
+     * order.
+     */
+    private fun pickNextPending(remaining: MutableList<PortableCommentItem>): PortableCommentItem? =
+        synchronized(remaining) {
+            if (remaining.isEmpty()) return null
+            val visible = visibleCommentIds
+            val index = if (visible.isEmpty()) {
+                -1
+            } else {
+                remaining.indexOfFirst { it.id in visible }
+            }
+            remaining.removeAt(if (index >= 0) index else 0)
+        }
 
     private fun htmlOf(comment: PortableCommentItem): String =
         comment.expandedAnchorText ?: comment.text.orEmpty()

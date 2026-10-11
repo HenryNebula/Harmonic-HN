@@ -951,6 +951,7 @@ class CommentsScreenController private constructor(
         fun onHeaderCoverageChanged(coverage: Float)
         fun onPollOption(optionId: Int)
         fun onToggleCommentTranslation(commentId: Int) {}
+        fun onVisibleCommentsChanged(commentIds: Set<Int>) {}
     }
 
     companion object {

@@ -74,6 +74,8 @@ class CommentsFeatureListener(
     override fun onPollOption(optionId: Int) = store.accept(CommentsIntent.PollOption(optionId))
     override fun onToggleCommentTranslation(commentId: Int) =
         store.accept(CommentsIntent.ToggleCommentTranslation(commentId))
+    override fun onVisibleCommentsChanged(commentIds: Set<Int>) =
+        store.accept(CommentsIntent.UpdateVisibleComments(commentIds))
 
     interface PlatformCallbacks {
         fun isRestoringScroll(): Boolean
