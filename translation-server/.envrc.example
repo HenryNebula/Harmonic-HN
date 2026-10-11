@@ -1,0 +1,9 @@
+# Copy to .envrc and adjust for your machine. .envrc is gitignored on purpose:
+# it contains machine-specific paths that must not be shared.
+export UV_CACHE_DIR=/path/to/cache/uv-cache
+export UV_PROJECT_ENVIRONMENT=/path/to/venvs/harmonic-translation-server
+
+# Copy to .env (also gitignored) or export in your environment.
+# export HTRANS_OPENROUTER_API_KEY=sk-or-...
+# export HTRANS_LANGUAGES=zh-Hans
+# export HTRANS_MODEL=openai/gpt-4o-mini
