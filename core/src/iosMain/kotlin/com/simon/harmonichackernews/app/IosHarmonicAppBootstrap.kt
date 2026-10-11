@@ -21,6 +21,10 @@ class IosHostRuntimeBindings(
     val filesDirectory: String,
     val cacheDirectory: String,
     val localModels: LocalModelService? = null,
+    val systemLanguage: () -> String = {
+        val preferred = platform.Foundation.NSLocale.preferredLanguages.firstOrNull() as? String
+        preferred ?: platform.Foundation.NSLocale.currentLocale().languageCode ?: "en"
+    },
 ) {
     init {
         require(filesDirectory.isNotBlank()) { "The iOS files directory is required" }
@@ -86,6 +90,7 @@ class IosHarmonicAppBootstrap(
             settingsChanges = preferences.changes,
             currentMinutesFromMidnight = runtime.currentMinutesFromMidnight,
             systemDark = runtime.systemDark,
+            systemLanguage = runtime.systemLanguage,
             showCommentsUpButtonByDefault = true,
             defaultSurfaceEffectMode = SurfaceEffectMode.Glass,
             storyCacheRepository = persistentStorage.storyCacheRepository,

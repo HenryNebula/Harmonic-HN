@@ -126,6 +126,7 @@ class DesktopHarmonicAppBootstrap(
                     LocalTime.now().let { it.hour * 60 + it.minute }
                 },
                 systemDark = DesktopSystemAppearance::isDark,
+                systemLanguage = { java.util.Locale.getDefault().toLanguageTag() },
                 showCommentsUpButtonByDefault = true,
                 preloadCommentsFromStoriesByDefault = true,
                 localModels = localAi.models,
@@ -180,6 +181,7 @@ class DesktopHarmonicAppBootstrap(
                     LocalTime.now().let { it.hour * 60 + it.minute }
                 },
                 systemDark = { false },
+                systemLanguage = { java.util.Locale.getDefault().toLanguageTag() },
             )
             return DesktopHarmonicAppBootstrap(
                 userAgent = userAgent,
