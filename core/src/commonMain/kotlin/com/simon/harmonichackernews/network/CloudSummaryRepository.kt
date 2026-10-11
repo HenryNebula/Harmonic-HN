@@ -30,6 +30,7 @@ data class CloudSummaryConfig(
     val systemPrompt: String = CloudSummaryDefaults.SYSTEM_PROMPT,
     val streamResponses: Boolean = true,
     val inputCharacterLimit: Int = 15_000,
+    val maxOutputTokens: Int? = null,
 )
 
 sealed interface CloudSummaryEvent {
@@ -106,6 +107,7 @@ class KtorCloudSummaryRepository(
             prompt = config.systemPrompt,
             text = text.orEmpty().trim().take(config.inputCharacterLimit),
             stream = config.streamResponses,
+            maxOutputTokens = config.maxOutputTokens,
         )
         val requestBuilder = HttpRequest.Builder()
             .url(joinUrl(config.baseUrl, if (anthropic) "messages" else "chat/completions"))
@@ -257,11 +259,12 @@ class KtorCloudSummaryRepository(
         prompt: String,
         text: String,
         stream: Boolean,
+        maxOutputTokens: Int? = null,
     ): JsonObject = buildJsonObject {
         put("model", model)
         put("stream", stream)
         if (anthropic) {
-            put("max_tokens", CLOUD_SUMMARY_MAX_OUTPUT_TOKENS)
+            put("max_tokens", maxOutputTokens ?: CLOUD_SUMMARY_MAX_OUTPUT_TOKENS)
             put("system", prompt)
             put("messages", buildJsonArray {
                 add(buildJsonObject {
@@ -270,6 +273,7 @@ class KtorCloudSummaryRepository(
                 })
             })
         } else {
+            if (maxOutputTokens != null) put("max_tokens", maxOutputTokens)
             put("messages", buildJsonArray {
                 add(buildJsonObject {
                     put("role", "system")
