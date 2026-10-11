@@ -7,6 +7,7 @@ import com.simon.harmonichackernews.data.StorySnapshot
 import com.simon.harmonichackernews.network.CloudSummaryConfig
 import com.simon.harmonichackernews.network.CloudSummaryEvent
 import com.simon.harmonichackernews.network.CloudSummaryRepository
+import com.simon.harmonichackernews.network.SummaryUseCase
 import com.simon.harmonichackernews.network.TranslationCacheClient
 import com.simon.harmonichackernews.platform.CredentialIds
 import com.simon.harmonichackernews.presentation.PortableCommentItem
@@ -15,6 +16,8 @@ import com.simon.harmonichackernews.settings.AiSummarySettingsRepository
 import com.simon.harmonichackernews.settings.TestCredentialStore
 import com.simon.harmonichackernews.settings.TestKeyValueStore
 import com.simon.harmonichackernews.settings.TranslationLanguage
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
@@ -69,10 +72,12 @@ class CommentTranslatorTest {
         store: TestKeyValueStore = TestKeyValueStore(),
         language: TranslationLanguage = TranslationLanguage.GERMAN,
         cacheUrl: String = "",
+        dispatcher: CoroutineDispatcher = Dispatchers.Unconfined,
     ): AiSummarySettingsRepository = AiSummarySettingsRepository(
         store,
         TestCredentialStore(mapOf(CredentialIds.AI_SUMMARY_API_KEY to "cloud-key")),
         emptyFlow(),
+        dispatcher,
     ).also {
         it.setTranslationLanguage(language)
         if (cacheUrl.isNotBlank()) it.setTranslationCacheUrl(cacheUrl)
@@ -97,7 +102,7 @@ class CommentTranslatorTest {
         assertEquals("Post title", payload["post_title"]!!.jsonPrimitive.content)
         val parents = payload["parents_oldest_first"]!!.jsonArray
         assertEquals(1, parents.size)
-        assertEquals("user800", parents.single()["author"]!!.jsonPrimitive.content)
+        assertEquals("user800", parents.single().jsonObject["author"]!!.jsonPrimitive.content)
         assertEquals("<p>Child <b>body</b></p>", payload["comment_html"]!!.jsonPrimitive.content)
         assertEquals("Post body", payload["post_body"]!!.jsonPrimitive.content)
 
@@ -141,7 +146,8 @@ class CommentTranslatorTest {
 
     @Test
     fun fenceWrappedAndBlankOutputsAreRejected() = runTest {
-        for (answer in listOf("```html\n<p>Guter Text</p>\n```", "   ", "<p></p>")) {
+        // Fence-wrapped valid HTML is unwrapped and accepted.
+        for (answer in listOf("   ", "<p></p>")) {
             val repo = repository(answer = { answer })
             val translator = CommentTranslator(
                 scope = this,
@@ -154,6 +160,16 @@ class CommentTranslatorTest {
             assertTrue(5 in translator.state.value.failed, "expected failure for: $answer")
             assertNull(translator.state.value.texts[5])
         }
+        val repo = repository(answer = { "```html\n<p>Guter Text</p>\n```" })
+        val translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repo),
+            settings = settings(),
+        )
+        val item = comment(6)
+        translator.translate(item, story(), listOf(item))
+        advanceUntilIdle()
+        assertEquals("<p>Guter Text</p>", translator.state.value.texts[6])
     }
 
     @Test

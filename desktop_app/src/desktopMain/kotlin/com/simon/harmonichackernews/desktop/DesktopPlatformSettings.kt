@@ -185,6 +185,7 @@ private fun DesktopAiSettings(
         },
         dialogContent = { dialog, dismiss ->
             when (dialog) {
+                AiSummarySettingsDialog.TranslationCacheUrl -> Unit
                 AiSummarySettingsDialog.BaseUrl -> AiSummaryBaseUrlDialog(dismiss)
                 AiSummarySettingsDialog.ApiKey -> AiSummaryTextDialog(
                     setting = AiSummaryTextSetting.API_KEY,

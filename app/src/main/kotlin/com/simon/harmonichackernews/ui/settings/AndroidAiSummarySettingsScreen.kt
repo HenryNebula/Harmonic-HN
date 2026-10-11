@@ -76,6 +76,7 @@ fun AndroidAiSummarySettingsScreen(
         },
         dialogContent = { dialog, onDismiss ->
             when (dialog) {
+                AiSummarySettingsDialog.TranslationCacheUrl -> Unit
                 AiSummarySettingsDialog.BaseUrl -> AiSummaryBaseUrlDialog(onDismiss = onDismiss)
                 AiSummarySettingsDialog.ApiKey -> AiSummaryTextDialog(
                     setting = AiSummaryTextSetting.API_KEY,
