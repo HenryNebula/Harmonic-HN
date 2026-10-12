@@ -23,6 +23,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.concurrent.Volatile
 
 /**
  * Translates comment threads through the configured cloud chat provider, reusing the AI summary
@@ -65,6 +68,9 @@ class CommentTranslator(
     /** Comment ids currently on screen, pushed by the comments UI as the viewport changes. */
     @Volatile
     private var visibleCommentIds: Set<Int> = emptySet()
+
+    /** Serializes concurrent workers pulling from the shared pending queue. */
+    private val pendingMutex = Mutex()
 
     fun updateVisibleCommentIds(commentIds: Set<Int>) {
         visibleCommentIds = commentIds
@@ -295,17 +301,18 @@ class CommentTranslator(
      * scrolled-in content finishes before off-screen remainder; the fallback keeps display
      * order.
      */
-    private fun pickNextPending(remaining: MutableList<PortableCommentItem>): PortableCommentItem? =
-        synchronized(remaining) {
-            if (remaining.isEmpty()) return null
-            val visible = visibleCommentIds
-            val index = if (visible.isEmpty()) {
-                -1
-            } else {
-                remaining.indexOfFirst { it.id in visible }
-            }
-            remaining.removeAt(if (index >= 0) index else 0)
+    private suspend fun pickNextPending(
+        remaining: MutableList<PortableCommentItem>,
+    ): PortableCommentItem? = pendingMutex.withLock {
+        if (remaining.isEmpty()) return@withLock null
+        val visible = visibleCommentIds
+        val index = if (visible.isEmpty()) {
+            -1
+        } else {
+            remaining.indexOfFirst { it.id in visible }
         }
+        remaining.removeAt(if (index >= 0) index else 0)
+    }
 
     private fun htmlOf(comment: PortableCommentItem): String =
         comment.expandedAnchorText ?: comment.text.orEmpty()
