@@ -111,7 +111,11 @@ final class HarmonicSceneDelegate: UIResponder, UIWindowSceneDelegate {
             },
             filesDirectory: filesDirectory.path,
             cacheDirectory: cacheDirectory.path,
-            localModels: nil
+            localModels: nil,
+            systemLanguage: {
+                let preferred = UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first
+                return preferred ?? "en"
+            }
         )
         let bindings = IosPlatformBindings(
             credentials: services.credentials,
