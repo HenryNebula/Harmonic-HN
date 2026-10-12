@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,10 +29,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
@@ -47,11 +51,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simon.harmonichackernews.network.AppReleaseChecker
+import com.simon.harmonichackernews.network.AppReleaseWarning
 import com.simon.harmonichackernews.ui.theme.cardBackground
 import com.simon.harmonichackernews.ui.theme.pageBackground
 import com.simon.harmonichackernews.resources.HarmonicDimens
 import com.simon.harmonichackernews.resources.Res
 import com.simon.harmonichackernews.resources.ic_attribution
+import com.simon.harmonichackernews.resources.ic_error
 import com.simon.harmonichackernews.resources.ic_link_preview_github
 import com.simon.harmonichackernews.resources.ic_policy
 import com.simon.harmonichackernews.resources.ic_system_update_alt
@@ -61,6 +68,7 @@ import com.simon.harmonichackernews.ui.common.OutlinedButton
 import com.simon.harmonichackernews.ui.settings.SettingsCard
 import com.simon.harmonichackernews.ui.theme.GoogleSansFlexRoundedFontFamily
 import com.simon.harmonichackernews.ui.theme.ProductSansFontFamily
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -94,8 +102,20 @@ fun AboutScreen(
     topBarNavigationInset: Dp = 0.dp,
     aboutBody: String = DefaultAboutBody,
     platformTextStyle: TextStyle = TextStyle.Default,
+    releaseChecker: AppReleaseChecker? = null,
+    installedVersionName: String = "",
+    onOpenReleaseUrl: (String) -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
+    val releaseWarnings by produceState(
+        initialValue = emptyList<AppReleaseWarning>(),
+        releaseChecker,
+        installedVersionName,
+    ) {
+        val checker = releaseChecker ?: return@produceState
+        if (installedVersionName.isBlank()) return@produceState
+        value = checker.checkInstalled(installedVersionName).warnings
+    }
 
     Column(
         modifier = modifier
@@ -142,6 +162,15 @@ fun AboutScreen(
                         appIcon = appIcon,
                         platformTextStyle = platformTextStyle,
                     )
+
+                    releaseWarnings.forEach { warning ->
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ReleaseWarningBanner(
+                            warning = warning,
+                            onOpen = onOpenReleaseUrl,
+                            platformTextStyle = platformTextStyle,
+                        )
+                    }
 
                     Text(
                         text = aboutBody,
@@ -221,6 +250,79 @@ private fun AboutIdentity(
         }
     }
 }
+
+/**
+ * One release-poll outcome. A newer fork release and an upstream release the fork has not
+ * baked in are surfaced as separate banners so neither masks the other.
+ */
+@Composable
+private fun ReleaseWarningBanner(
+    warning: AppReleaseWarning,
+    onOpen: (String) -> Unit,
+    platformTextStyle: TextStyle,
+) {
+    val colors = MaterialTheme.colorScheme
+    val (title, body, icon, containerColor, contentColor) = when (warning) {
+        is AppReleaseWarning.ForkUpdate -> BannerContent(
+            title = "Update available",
+            body = "Harmonic v${warning.latest} is out. This build runs v${warning.installed}.",
+            icon = Res.drawable.ic_system_update_alt,
+            containerColor = colors.secondaryContainer,
+            contentColor = colors.onSecondaryContainer,
+        )
+        is AppReleaseWarning.UpstreamNotBakedIn -> BannerContent(
+            title = "Behind upstream",
+            body = "Upstream Harmonic v${warning.upstreamLatest} has changes this fork has not " +
+                "baked in yet (latest fork release: v${warning.forkLatest}).",
+            icon = Res.drawable.ic_error,
+            containerColor = colors.errorContainer,
+            contentColor = colors.onErrorContainer,
+        )
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(containerColor)
+            .clickable(role = Role.Button) { onOpen(warning.openUrl) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(icon),
+            contentDescription = null,
+            modifier = Modifier.size(24.dp).alpha(0.9f),
+            colorFilter = ColorFilter.tint(contentColor),
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = contentColor,
+                fontFamily = ProductSansFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                style = platformTextStyle,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = body,
+                color = contentColor,
+                fontFamily = ProductSansFontFamily,
+                fontSize = 14.sp,
+                style = platformTextStyle,
+            )
+        }
+    }
+}
+
+private data class BannerContent(
+    val title: String,
+    val body: String,
+    val icon: DrawableResource,
+    val containerColor: Color,
+    val contentColor: Color,
+)
 
 @Composable
 private fun FeedbackCard(platformTextStyle: TextStyle) {

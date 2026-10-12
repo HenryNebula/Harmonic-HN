@@ -147,6 +147,9 @@ fun PortableSettingsDetail(
             onOpenPrivacy = { scene.links.open(app.metadata.privacyUrl) },
             showNavigation = singlePane,
             aboutBody = aboutBody,
+            releaseChecker = app.network.appReleaseChecker,
+            installedVersionName = app.metadata.versionName,
+            onOpenReleaseUrl = { scene.links.open(it) },
         )
         SettingsSection.Licenses -> LicensesScreen(
             licenses = CommonLicenseCatalog.entries,

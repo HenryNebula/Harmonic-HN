@@ -90,6 +90,7 @@ class NetworkGraph internal constructor(
         KtorCloudSummaryRepository(httpClient, userAgent)
     val summaryUseCase: SummaryUseCase = SummaryUseCase(cloudSummaryRepository)
     val translationCacheClient: TranslationCacheClient = KtorTranslationCacheClient(httpClient)
+    val appReleaseChecker: AppReleaseChecker = KtorAppReleaseChecker(httpClient)
     val aiModelCatalogRepository: AiModelCatalogRepository =
         KtorAiModelCatalogRepository(httpClient)
     val openRouterProviderIconRepository: OpenRouterProviderIconRepository =

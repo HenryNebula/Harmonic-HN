@@ -30,7 +30,8 @@ fun AndroidAboutScreen(
     singlePane: Boolean = true,
 ) {
     val context = LocalContext.current
-    val metadata = LocalHarmonicUiDependencies.current.metadata
+    val dependencies = LocalHarmonicUiDependencies.current
+    val metadata = dependencies.metadata
     val iconSizePx = with(LocalDensity.current) { 56.dp.roundToPx() }
     val appIcon = remember(context, iconSizePx) {
         BitmapPainter(
@@ -56,5 +57,8 @@ fun AndroidAboutScreen(
         platformTextStyle = TextStyle(
             platformStyle = PlatformTextStyle(includeFontPadding = true),
         ),
+        releaseChecker = dependencies.network.appReleaseChecker,
+        installedVersionName = metadata.versionName,
+        onOpenReleaseUrl = { dependencies.links.open(it) },
     )
 }
