@@ -46,6 +46,7 @@ fun AndroidAiSummarySettingsScreen(
     AiSummarySettingsRoute(
         repository = repository,
         modelDefaults = appComposition.aiModelDefaults,
+        translationCacheClient = appComposition.network.translationCacheClient,
         localSummarizationSupported = availabilityState.supported,
         localAvailabilityResolved = availabilityState.availabilityResolved,
         localConfigurationReady = availabilityState.configurationReady,

@@ -129,6 +129,7 @@ private fun DesktopAiSettings(
     AiSummarySettingsRoute(
         repository = app.aiSummarySettings,
         modelDefaults = app.aiModelDefaults,
+        translationCacheClient = app.network.translationCacheClient,
         localSummarizationSupported = availabilityState.supported,
         localAvailabilityResolved = availabilityState.availabilityResolved,
         localConfigurationReady = availabilityState.configurationReady,

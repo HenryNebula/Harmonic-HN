@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simon.harmonichackernews.network.CacheServerCheck
 import com.simon.harmonichackernews.resources.HarmonicDimens
 import com.simon.harmonichackernews.ui.theme.ProductSansFontFamily
 import kotlinx.coroutines.launch
@@ -226,3 +227,113 @@ fun AiSummaryBaseUrlDialog(
 }
 
 private fun normalizeBaseUrl(url: String): String = url.trim().trimEnd('/')
+
+/**
+ * Base URL entry for the self-hosted translation cache. A new non-empty address is
+ * connection-tested before it is saved, so an unreachable server never quietly adds a
+ * timeout to every translated thread; a second tap force-saves an address that is only
+ * temporarily offline. Clearing the field disables the cache and needs no test.
+ */
+@Composable
+fun TranslationCacheServerDialog(
+    initialUrl: String,
+    onCheck: suspend (String) -> CacheServerCheck,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var value by remember(initialUrl) { mutableStateOf(initialUrl) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    var forceSave by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+
+    fun save() {
+        if (checking) return
+        val savedValue = value.trim()
+        // Empty disables the cache; an unchanged address was tested when it was first saved.
+        if (savedValue.isEmpty() || savedValue == initialUrl.trim() || forceSave) {
+            onSave(savedValue)
+            onDismiss()
+            return
+        }
+        checking = true
+        scope.launch {
+            when (val outcome = onCheck(savedValue)) {
+                is CacheServerCheck.Reachable -> {
+                    onSave(savedValue)
+                    onDismiss()
+                }
+                is CacheServerCheck.Unreachable -> {
+                    val reason = outcome.reason.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
+                    error = "Couldn't reach the server$reason. Check that it is running and " +
+                        "reachable, or save anyway to enable it as-is."
+                    forceSave = true
+                }
+            }
+            checking = false
+        }
+    }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    SettingsAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { SettingsDialogTitle("Translation cache server") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Pre-translated threads are fetched from this server. " +
+                        "New addresses are connection-tested before they are enabled.",
+                    modifier = Modifier.padding(top = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = ProductSansFontFamily,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = {
+                        value = it
+                        error = null
+                        forceSave = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .then(
+                            Modifier.height(
+                                HarmonicDimens.compose_settings_dialog_single_line_field_height,
+                            ),
+                        )
+                        .focusRequester(focusRequester),
+                    label = { Text("Base URL, e.g. http://192.168.1.10:8362") },
+                    isError = error != null,
+                    supportingText = error?.let { message -> { Text(message) } },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { save() }),
+                )
+            }
+        },
+        confirmButton = {
+            SettingsDialogTextButton(onClick = { save() }, enabled = !checking) {
+                Text(
+                    when {
+                        checking -> "Testing…"
+                        forceSave -> "Save anyway"
+                        else -> "Save"
+                    },
+                )
+            }
+        },
+        dismissButton = {
+            SettingsDialogTextButton(onClick = onDismiss, enabled = !checking) {
+                Text("Cancel")
+            }
+        },
+    )
+}

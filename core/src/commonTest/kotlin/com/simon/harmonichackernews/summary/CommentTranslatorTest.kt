@@ -4,6 +4,7 @@ import com.simon.harmonichackernews.data.CommentPresentationSnapshot
 import com.simon.harmonichackernews.data.CommentSnapshot
 import com.simon.harmonichackernews.data.StoryPresentationSnapshot
 import com.simon.harmonichackernews.data.StorySnapshot
+import com.simon.harmonichackernews.network.CacheServerCheck
 import com.simon.harmonichackernews.network.CloudSummaryConfig
 import com.simon.harmonichackernews.network.CloudSummaryEvent
 import com.simon.harmonichackernews.network.CloudSummaryRepository
@@ -323,6 +324,8 @@ class CommentTranslatorTest {
                 cacheLookups += storyId to language
                 return mapOf(1 to "<p>Aus dem Cache 1</p>", 2 to "<p>Aus dem Cache 2</p>", 99 to "<p>Unrelated</p>")
             }
+
+            override suspend fun checkServer(baseUrl: String) = CacheServerCheck.Reachable
         }
         val translator = CommentTranslator(
             scope = this,
@@ -357,6 +360,8 @@ class CommentTranslatorTest {
         val repo = repository()
         val cache = object : TranslationCacheClient {
             override suspend fun fetchTranslations(baseUrl: String, storyId: Int, language: String): Map<Int, String>? = null
+
+            override suspend fun checkServer(baseUrl: String) = CacheServerCheck.Reachable
         }
         val translator = CommentTranslator(
             scope = this,

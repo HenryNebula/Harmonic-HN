@@ -3,6 +3,7 @@ package com.simon.harmonichackernews.ui.settings
 import com.simon.harmonichackernews.settings.ColorSchemeStyle
 
 import com.simon.harmonichackernews.network.AiSummaryProviders
+import com.simon.harmonichackernews.network.TranslationCacheClient
 import com.simon.harmonichackernews.settings.GeneralBooleanPreference
 import com.simon.harmonichackernews.summary.LocalModelCatalog
 import com.simon.harmonichackernews.ui.navigation.LocalSplitPaneLayout
@@ -92,6 +93,7 @@ fun DataSettingsRoute(
 fun AiSummarySettingsRoute(
     repository: AiSummarySettingsRepository,
     modelDefaults: AiModelDefaultsUseCase,
+    translationCacheClient: TranslationCacheClient,
     localSummarizationSupported: Boolean,
     localAvailabilityResolved: Boolean,
     localConfigurationReady: Boolean,
@@ -235,21 +237,11 @@ fun AiSummarySettingsRoute(
     val activeDialog = dialog
     if (activeDialog == AiSummarySettingsDialog.TranslationCacheUrl) {
         // Rendered here rather than through host dialogContent switches so no host changes.
-        AiSummaryTextDialog(
-            title = "Translation cache server",
-            hint = "Base URL, e.g. http://192.168.1.10:8362",
-            initialValue = persistedSettings.translationCacheUrl,
-            defaultValue = "",
-            minLines = 1,
-            maxLines = 1,
-            textSizeSp = 16,
-            trimValue = true,
-            allowEmpty = true,
-            showReset = false,
-            asciiInput = false,
+        TranslationCacheServerDialog(
+            initialUrl = persistedSettings.translationCacheUrl,
+            onCheck = translationCacheClient::checkServer,
             onSave = { value ->
                 repository.setTranslationCacheUrl(value)
-                null
             },
             onDismiss = { dialog = null },
         )
