@@ -71,6 +71,8 @@ jobs:
           --no-daemon
           --max-workers=2
           --parallel
+      - name: Verify JNI UTF-8 conversion
+        run: python3 local_ai_runtime/src/test/cpp/jni_utf8/run.py
 
   build:
     needs: changes
@@ -161,9 +163,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       ORG_GRADLE_PROJECT_harmonicAndroidHostEnabled: 'false'
-      # Keep shrinking and release verification, but leave expensive bytecode
-      # optimization to tagged releases (the Gradle default).
-      ORG_GRADLE_PROJECT_harmonicDesktopOptimize: 'false'
+      # Exercise optimized dependency bytecode on every PR, not only tagged releases.
+      ORG_GRADLE_PROJECT_harmonicDesktopOptimize: ${{ matrix.os == 'macos-15' }}
     strategy:
       fail-fast: false
       matrix:

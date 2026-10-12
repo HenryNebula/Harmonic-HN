@@ -22,7 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -139,7 +139,7 @@ internal fun CommentMeta(
             if (byOp) {
                 Text(
                     "OP",
-                    modifier = Modifier.padding(start = 3.dp).height(14.dp).clip(RoundedCornerShape(3.dp))
+                    modifier = Modifier.padding(start = 3.dp).heightIn(min = 14.dp).clip(RoundedCornerShape(3.dp))
                         .background(metaColor.copy(alpha = 0.14f)).padding(horizontal = 3.dp),
                     color = metaColor,
                     fontFamily = fontFamily,

@@ -108,6 +108,8 @@ internal class AndroidCommentsWebViewController(
     internal interface Callbacks {
         fun onWebViewInitialized() = Unit
 
+        fun onPdfPageChanged() = Unit
+
         fun openExternalLink(url: String)
 
         fun showMessage(
@@ -181,6 +183,12 @@ internal class AndroidCommentsWebViewController(
 
     private var pdfDownloadJob: Job? = null
     private var downloadedPdfUrl: String? = null
+    var isPdfPage: Boolean = isKnownPdfPage(story?.url, story)
+        private set(value) {
+            if (field == value) return
+            field = value
+            callbacks.onPdfPageChanged()
+        }
     val isReaderModeAvailable: Boolean get() = webContentSession.readerState.available
     private val readerModeEnabled: Boolean get() = webContentSession.readerState.enabled
     private var touchGestureStartScrollX = 0
@@ -791,6 +799,8 @@ internal class AndroidCommentsWebViewController(
         cancelCachedArticleLoad()
         cancelPdfDownload()
 
+        isPdfPage = isKnownPdfPage(url, story)
+
         if (!isPdfViewerUrl(url)) {
             pdfWebViewSession.revokeBridge(view)
         }
@@ -1037,6 +1047,7 @@ internal class AndroidCommentsWebViewController(
     ) {
         if (ctx == null) return
         val targetWebView = webView ?: return
+        isPdfPage = true
         val generation = webContentLoad.state.generation
         cancelPdfDownload()
         val job = coroutineScope.launch(start = CoroutineStart.LAZY) {
@@ -1682,6 +1693,14 @@ internal class AndroidCommentsWebViewController(
     }
 
     companion object {
+        // Seed the action before the first composition, then apply the same hints on navigation.
+        fun isKnownPdfPage(url: String?, story: Story?): Boolean =
+            !url.isNullOrBlank() && (
+                isTrustedPdfViewerUrl(url, PDF_LOADER_URL) ||
+                    url.substringBefore('#').substringBefore('?').endsWith(".pdf", ignoreCase = true) ||
+                    (url == story?.url && !story.pdfTitle.isNullOrEmpty())
+                )
+
         private const val PDF_MIME_TYPE = "application/pdf"
         private const val PDF_LOADER_URL = AndroidPdfWebViewAssets.VIEWER_URL
         private val OFFLINE_PAGE_URL = Res.getUri(sharedWebResource(WebContentAssets.OFFLINE_PAGE))

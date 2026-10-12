@@ -301,6 +301,10 @@ class AndroidCommentsCoordinator(
                     refreshPresentationCapabilities()
                 }
 
+                override fun onPdfPageChanged() {
+                    refreshPresentationCapabilities()
+                }
+
                 override fun syncOnBackPressedCallbackEnabledState() {
                     this@AndroidCommentsCoordinator.syncOnBackPressedCallbackEnabledState()
                 }
@@ -916,8 +920,12 @@ class AndroidCommentsCoordinator(
     }
 
     private fun shouldShowInvertAction(): Boolean {
+        val isPdfPage = webViewController?.isPdfPage
+            ?: AndroidCommentsWebViewController.isKnownPdfPage(story?.url, story)
+        if (isPdfPage) return false
         // Even a feature query can synchronously initialize Chromium before the opening delay.
-        if (webViewController?.hasWebView() != true) return false
+        // Keep the action visible until the initialized WebView can establish support.
+        if (webViewController?.hasWebView() != true) return true
         return WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)
                 || WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)
     }
