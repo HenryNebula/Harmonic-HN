@@ -17,7 +17,7 @@ sealed interface CacheServerCheck {
 
 /**
  * Reads pre-computed comment translations from an optional self-hosted cache server
- * (see `translation-server/`). Any transport failure, non-200 response, or malformed
+ * (the standalone translation server project). Any transport failure, non-200 response, or malformed
  * body is reported as a miss so callers fall back to the cloud chat endpoint.
  */
 interface TranslationCacheClient {

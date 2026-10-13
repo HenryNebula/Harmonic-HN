@@ -31,7 +31,7 @@ import kotlin.concurrent.Volatile
  * Translates comment threads through the configured cloud chat provider, reusing the AI summary
  * key, base URL and model exactly like the Ask feature. Translated HTML replaces the rendered
  * comment body while the original stays one toggle away; an optional self-hosted cache server
- * (`translation-server/`) is consulted once per story and language before any direct requests.
+ * (the standalone translation server project) is consulted once per story and language before any direct requests.
  */
 class CommentTranslator(
     private val scope: CoroutineScope,
@@ -327,7 +327,7 @@ class CommentTranslator(
         private const val MAX_PARENT_CONTEXT_CHARS = 6_000
 
         /**
-         * Must stay in sync with `TRANSLATION_PROMPT` in `translation-server/translator.py`;
+         * Must stay in sync with `TRANSLATION_PROMPT` in the translation server's `translator.py`;
          * both sides translate the same fields under the same rules.
          */
         fun translationPrompt(languageName: String): String =
