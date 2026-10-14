@@ -32,6 +32,10 @@ import kotlin.concurrent.Volatile
  * key, base URL and model exactly like the Ask feature. Translated HTML replaces the rendered
  * comment body while the original stays one toggle away; an optional self-hosted cache server
  * (the standalone translation server project) is consulted once per story and language before any direct requests.
+ *
+ * Cached translations are also installed on demand when a thread settles
+ * ([prefetchCachedTranslations]) without any model requests, and a running whole-thread sweep
+ * can be stopped ([stopThreadTranslation]) while keeping everything already translated.
  */
 class CommentTranslator(
     private val scope: CoroutineScope,
@@ -173,6 +177,27 @@ class CommentTranslator(
                 }
             }
         }
+    }
+
+    /**
+     * Installs cached translations for a freshly loaded thread without contacting the chat
+     * model. Used automatically when the target language is not English, so pre-translated
+     * content from the cache server is visible on open; every miss stays untranslated until
+     * the user explicitly translates it. Single-comment translations stay untouched.
+     */
+    fun prefetchCachedTranslations(story: StoryListItemSnapshot, thread: List<PortableCommentItem>) {
+        if (cache == null) return
+        if (settings.snapshot().translationCacheUrl.isBlank()) return
+        prepareLanguage()
+        val language = mutableState.value.language
+        if (language.isBlank() || language == TranslationLanguage.ENGLISH.storedValue) return
+        scope.launch { prefetchCache(story, thread) }
+    }
+
+    /** Cancels a running whole-thread sweep, keeping every translation already installed. */
+    fun stopThreadTranslation() {
+        job?.cancel()
+        mutableState.update { it.copy(threadRunning = false) }
     }
 
     fun toggle(commentId: Int) {

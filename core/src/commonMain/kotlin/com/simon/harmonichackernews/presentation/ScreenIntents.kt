@@ -52,6 +52,7 @@ enum class CommentsHeaderAction {
     BOOKMARK,
     SUMMARIZE,
     TRANSLATE,
+    STOP_TRANSLATING,
     REFRESH,
 }
 

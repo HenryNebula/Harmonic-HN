@@ -130,6 +130,10 @@ class CommentsScreenController private constructor(
     val commentTranslationTotal: Int get() = screenState.translation.threadTotal
     val commentTranslationCompleted: Int get() = screenState.translation.threadCompleted
     val hasCommentTranslations: Boolean get() = screenState.translation.hasTranslations
+
+    /** True while at least one rendered comment still lacks a translation. */
+    val hasUntranslatedComments: Boolean
+        get() = comments.any { translatedTextFor(it.id) == null && !(it.expandedAnchorText ?: it.text).isNullOrBlank() }
     fun translatedTextFor(commentId: Int): String? = screenState.translation.texts[commentId]
     fun isCommentTranslating(commentId: Int): Boolean = commentId in screenState.translation.loading
     fun commentTranslationFailed(commentId: Int): Boolean = commentId in screenState.translation.failed

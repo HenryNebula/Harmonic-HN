@@ -96,6 +96,7 @@ object CommentsUiOrchestrator {
             )
             CommentsHeaderAction.SUMMARIZE -> effect(CommentsPlatformEffect.Summarize)
             CommentsHeaderAction.TRANSLATE -> FeatureDecision()
+            CommentsHeaderAction.STOP_TRANSLATING -> FeatureDecision()
             CommentsHeaderAction.REFRESH -> FeatureDecision()
         }
     }

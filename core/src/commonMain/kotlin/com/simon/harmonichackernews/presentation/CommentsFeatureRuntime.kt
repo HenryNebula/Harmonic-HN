@@ -604,6 +604,10 @@ class CommentsFeatureRuntime(
             translateAllComments()
             return
         }
+        if (action == CommentsHeaderAction.STOP_TRANSLATING) {
+            stopCommentTranslation()
+            return
+        }
         execute(CommentsUiOrchestrator.header(action, CommentsHeaderContext(story, hasAccount)))
     }
 
@@ -701,7 +705,7 @@ class CommentsFeatureRuntime(
     private fun translateAllComments() {
         val currentStory = story ?: return
         translation?.translateAll(
-            story = StoryListItemSnapshot(currentStory.toSnapshot(), currentStory.presentationSnapshot()),
+            story = translationStory(currentStory),
             thread = thread.state.value.allComments,
         )
     }
@@ -710,10 +714,31 @@ class CommentsFeatureRuntime(
         val currentStory = story ?: return
         translation?.translate(
             comment = comment,
-            story = StoryListItemSnapshot(currentStory.toSnapshot(), currentStory.presentationSnapshot()),
+            story = translationStory(currentStory),
             thread = thread.state.value.allComments,
         )
     }
+
+    private fun stopCommentTranslation() {
+        translation?.stopThreadTranslation()
+    }
+
+    /**
+     * Shows pre-translated comments from the cache server by default. Runs once per applied
+     * thread when translation is available and the resolved language is not English; it never
+     * starts model requests, so uncached comments wait for an explicit translate action.
+     */
+    private fun prefetchCachedTranslations() {
+        val currentStory = story ?: return
+        if (settingsState.value?.displaySettings?.canTranslateComments != true) return
+        translation?.prefetchCachedTranslations(
+            story = translationStory(currentStory),
+            thread = thread.state.value.allComments,
+        )
+    }
+
+    private fun translationStory(story: Story): StoryListItemSnapshot =
+        StoryListItemSnapshot(story.toSnapshot(), story.presentationSnapshot())
 
     fun dispose() {
         cancelPendingHeader()
@@ -794,6 +819,7 @@ class CommentsFeatureRuntime(
                         ),
                     )
                     requestAutomaticSummaryIfEligible()
+                    prefetchCachedTranslations()
                 }
                 // Ready/state effects must reach the host without waiting for cache hashing or
                 // disk writes. Keep writes in this collector to preserve their existing order.

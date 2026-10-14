@@ -17,6 +17,7 @@ import com.simon.harmonichackernews.settings.AiSummarySettingsRepository
 import com.simon.harmonichackernews.settings.TestCredentialStore
 import com.simon.harmonichackernews.settings.TestKeyValueStore
 import com.simon.harmonichackernews.settings.TranslationLanguage
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -57,7 +58,7 @@ class CommentTranslatorTest {
         CommentPresentationSnapshot(),
     )
 
-    private fun repository(answer: (String) -> String = { "<p>Translated</p>" }) = object : CloudSummaryRepository {
+    private fun repository(answer: suspend (String) -> String = { "<p>Translated</p>" }) = object : CloudSummaryRepository {
         val requests = mutableListOf<String>()
         val configs = mutableListOf<CloudSummaryConfig>()
         override suspend fun fetchModelIds(baseUrl: String, apiKey: String) = emptyList<String>()
@@ -390,6 +391,123 @@ class CommentTranslatorTest {
         advanceUntilIdle()
         assertEquals(0, repo.requests.size)
         assertEquals("<p>[Sample German translation for testing.]</p>", translator.state.value.texts[4])
+    }
+
+    @Test
+    fun prefetchInstallsCachedTranslationsWithoutModelRequests() = runTest {
+        val settingsRepository = settings(cacheUrl = "http://cache.local")
+        val repo = repository()
+        val cacheLookups = mutableListOf<Pair<Int, String>>()
+        val cache = object : TranslationCacheClient {
+            override suspend fun fetchTranslations(baseUrl: String, storyId: Int, language: String) = mapOf(
+                1 to "<p>Aus dem Cache 1</p>",
+                2 to "<p>Aus dem Cache 2</p>",
+            ).also { cacheLookups += storyId to language }
+
+            override suspend fun checkServer(baseUrl: String) = CacheServerCheck.Reachable
+        }
+        val translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repo),
+            settings = settingsRepository,
+            cache = cache,
+        )
+        val thread = listOf(comment(1), comment(2), comment(3))
+        translator.prefetchCachedTranslations(story(), thread)
+        advanceUntilIdle()
+
+        val state = translator.state.value
+        assertEquals("<p>Aus dem Cache 1</p>", state.texts[1])
+        assertEquals("<p>Aus dem Cache 2</p>", state.texts[2])
+        // A cache miss stays untranslated: no model requests run without an explicit action.
+        assertNull(state.texts[3])
+        assertEquals(0, repo.requests.size)
+        assertFalse(state.threadRunning)
+
+        // Repeated calls consult the cache once per story and language.
+        translator.prefetchCachedTranslations(story(), thread)
+        advanceUntilIdle()
+        assertEquals(1, cacheLookups.size)
+    }
+
+    @Test
+    fun prefetchSkipsEnglishLanguageAndUnconfiguredCache() = runTest {
+        val cacheLookups = mutableListOf<Pair<Int, String>>()
+        val cache = object : TranslationCacheClient {
+            override suspend fun fetchTranslations(baseUrl: String, storyId: Int, language: String): Map<Int, String> {
+                cacheLookups += storyId to language
+                return emptyMap()
+            }
+
+            override suspend fun checkServer(baseUrl: String) = CacheServerCheck.Reachable
+        }
+        val thread = listOf(comment(1))
+
+        // Explicit English needs no translation.
+        var translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repository()),
+            settings = settings(language = TranslationLanguage.ENGLISH, cacheUrl = "http://cache.local"),
+            cache = cache,
+        )
+        translator.prefetchCachedTranslations(story(), thread)
+        advanceUntilIdle()
+        assertTrue(cacheLookups.isEmpty())
+
+        // A system locale of English resolves to English as well.
+        translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repository()),
+            settings = settings(language = TranslationLanguage.SYSTEM, cacheUrl = "http://cache.local"),
+            cache = cache,
+            systemLanguage = { "en-US" },
+        )
+        translator.prefetchCachedTranslations(story(), thread)
+        advanceUntilIdle()
+        assertTrue(cacheLookups.isEmpty())
+
+        // Without a configured cache server there is nothing to prefetch.
+        translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repository()),
+            settings = settings(language = TranslationLanguage.GERMAN),
+            cache = cache,
+        )
+        translator.prefetchCachedTranslations(story(), thread)
+        advanceUntilIdle()
+        assertTrue(cacheLookups.isEmpty())
+        assertTrue(translator.state.value.texts.isEmpty())
+    }
+
+    @Test
+    fun stopThreadTranslationHaltsSweepAndKeepsInstalledTexts() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val repo = repository(answer = {
+            if (it.contains("Comment 3")) {
+                gate.await()
+                "<p>Late</p>"
+            } else {
+                "<p>Ok</p>"
+            }
+        })
+        val translator = CommentTranslator(
+            scope = this,
+            summaries = SummaryUseCase(repo),
+            settings = settings(),
+        )
+        val thread = listOf(comment(1), comment(2), comment(3))
+        translator.translateAll(story(), thread)
+        advanceUntilIdle()
+        assertTrue(translator.state.value.threadRunning)
+        assertEquals(setOf(1, 2), translator.state.value.texts.keys)
+
+        translator.stopThreadTranslation()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        val state = translator.state.value
+        assertFalse(state.threadRunning)
+        assertEquals(setOf(1, 2), state.texts.keys)
     }
 
     @Test

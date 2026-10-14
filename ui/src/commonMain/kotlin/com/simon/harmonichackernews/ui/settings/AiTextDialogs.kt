@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.simon.harmonichackernews.network.CacheServerCheck
 import com.simon.harmonichackernews.resources.HarmonicDimens
 import com.simon.harmonichackernews.ui.theme.ProductSansFontFamily
@@ -233,6 +235,10 @@ private fun normalizeBaseUrl(url: String): String = url.trim().trimEnd('/')
  * connection-tested before it is saved, so an unreachable server never quietly adds a
  * timeout to every translated thread; a second tap force-saves an address that is only
  * temporarily offline. Clearing the field disables the cache and needs no test.
+ *
+ * A failed test must never discard what was typed: the dialog stays open with the address
+ * intact (also across recomposition or configuration changes) so a typo can be fixed and
+ * retested, and only the explicit buttons close it.
  */
 @Composable
 fun TranslationCacheServerDialog(
@@ -241,7 +247,7 @@ fun TranslationCacheServerDialog(
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var value by remember(initialUrl) { mutableStateOf(initialUrl) }
+    var value by rememberSaveable(initialUrl) { mutableStateOf(initialUrl) }
     var error by remember { mutableStateOf<String?>(null) }
     var checking by remember { mutableStateOf(false) }
     var forceSave by remember { mutableStateOf(false) }
@@ -259,19 +265,22 @@ fun TranslationCacheServerDialog(
         }
         checking = true
         scope.launch {
-            when (val outcome = onCheck(savedValue)) {
-                is CacheServerCheck.Reachable -> {
-                    onSave(savedValue)
-                    onDismiss()
+            try {
+                when (val outcome = onCheck(savedValue)) {
+                    is CacheServerCheck.Reachable -> {
+                        onSave(savedValue)
+                        onDismiss()
+                    }
+                    is CacheServerCheck.Unreachable -> {
+                        val reason = outcome.reason.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
+                        error = "Couldn't reach the server$reason. Check that it is running and " +
+                            "reachable, fix the address and try again, or save anyway to enable it as-is."
+                        forceSave = true
+                    }
                 }
-                is CacheServerCheck.Unreachable -> {
-                    val reason = outcome.reason.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
-                    error = "Couldn't reach the server$reason. Check that it is running and " +
-                        "reachable, or save anyway to enable it as-is."
-                    forceSave = true
-                }
+            } finally {
+                checking = false
             }
-            checking = false
         }
     }
 
@@ -279,6 +288,7 @@ fun TranslationCacheServerDialog(
 
     SettingsAlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = { SettingsDialogTitle("Translation cache server") },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {

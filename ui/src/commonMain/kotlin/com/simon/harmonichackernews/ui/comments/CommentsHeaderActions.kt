@@ -131,7 +131,17 @@ fun CommentsHeaderActions(
         if (hasAccount) add(HeaderAction(if (favorited) Res.drawable.ic_star_filled else Res.drawable.ic_star, if (favorited) "Remove favorite" else "Favorite", CommentsHeaderAction.FAVORITE, controller.storyFavoriteLoading))
         if (bookmarksEnabled && !hasAccount) add(HeaderAction(if (bookmarked) Res.drawable.ic_bookmark_filled else Res.drawable.ic_bookmark, if (bookmarked) "Remove bookmark" else "Bookmark", CommentsHeaderAction.BOOKMARK))
         if (story.isLink && settings.canProvideSummary && !story.summaryGeneratedSuccessfully) add(HeaderAction(Res.drawable.ic_auto_awesome, "Summarize", CommentsHeaderAction.SUMMARIZE, controller.storySummaryLoading))
-        if (settings.canTranslateComments && controller.comments.isNotEmpty() && !controller.hasCommentTranslations) add(HeaderAction(Res.drawable.ic_translate, if (controller.commentTranslationRunning) "Translating comments" else "Translate comments", CommentsHeaderAction.TRANSLATE, controller.commentTranslationRunning))
+        // A partial cache install must not hide the sweep, so the action keys off remaining
+        // work: Stop while running, Translate whenever comments are still untranslated.
+        if (settings.canTranslateComments && controller.hasUntranslatedComments) {
+            add(
+                if (controller.commentTranslationRunning) {
+                    HeaderAction(Res.drawable.ic_stop, "Stop translating", CommentsHeaderAction.STOP_TRANSLATING)
+                } else {
+                    HeaderAction(Res.drawable.ic_translate, "Translate comments", CommentsHeaderAction.TRANSLATE)
+                },
+            )
+        }
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val actionCount = actions.size + (if (hasAccount) 2 else 3) +
